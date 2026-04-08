@@ -25,16 +25,35 @@
 
 
 ### 실행 전 필수 작업 
-1. Firebase 설정
+#### Firebase 설정
 src/firebase/config.ts 에서 실제 Firebase 키 입력:
 
-2. Firebase Console → 새 프로젝트 생성
-3. Authentication → Google 로그인 활성화
-4. Firestore Database → 생성 (테스트 모드로 시작)
-5. 프로젝트 설정 → 웹 앱 추가 → SDK 설정 키 복사 → config.ts에 붙여넣기
+    1. Firebase Console → 새 프로젝트 생성
+    2. Authentication → Google 로그인 활성화
+    3. Firestore Database → 생성 (테스트 모드로 시작)
+    4. 프로젝트 설정 → 웹 앱 추가 → SDK 설정 키 복사 → config.ts에 붙여넣기
 
 ### 실행하기
 cd D:/sorajapp/claudeTest/maze-game
 npm run dev   # 개발 서버 실행
 
+### 환경구성
+#### firebase 호스팅 설정
+    1. firebase cli 설치
+    ```
+    npm install -g firebase-tools
+    ```
+    2. 프로젝트 초기화
+    ```
+    firebase login
+    firebase init
+    ```
+    3. firebase 호스팅에 배포하기
+    ```
+    정적 파일(예: HTML, CSS, JS)을 앱의 배포 디렉터리에 배치합니다. 
+    기본값은 '공개'입니다. 그런 다음 앱의 루트 디렉터리에서 이 명령어를 실행합니다.
 
+    npm run build && firebase deploy
+    ```
+    4. 배포후 확인
+        https://maze-breakout.web.app/

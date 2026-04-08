@@ -82,6 +82,7 @@ export type ActiveModal = 'combat' | 'chest' | 'crafting' | 'ranking' | null;
 export interface GameState {
   screen: GameScreen;
   stage: number;
+  maxClearedStage: number;
   maze: CellType[][];
   mazeSize: number;
   playerPos: Position;
@@ -113,6 +114,7 @@ export interface RankingEntry {
 
 export type GameAction =
   | { type: 'INIT_STAGE'; stage: number }
+  | { type: 'SET_MAX_CLEARED_STAGE'; stage: number }
   | { type: 'MOVE'; dx: number; dy: number }
   | { type: 'COMBAT_ATTACK' }
   | { type: 'COMBAT_USE_ITEM'; itemIndex: number }

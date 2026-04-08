@@ -1,14 +1,19 @@
-import { initializeApp } from 'firebase/app';
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
 
-// ⚠️ Firebase 콘솔(https://console.firebase.google.com)에서 프로젝트 생성 후
-// 아래 값을 실제 값으로 교체하세요.
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: 'YOUR_API_KEY',
-  authDomain: 'YOUR_AUTH_DOMAIN',
-  projectId: 'YOUR_PROJECT_ID',
-  storageBucket: 'YOUR_STORAGE_BUCKET',
-  messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-  appId: 'YOUR_APP_ID',
+  apiKey: "AIzaSyBZQGj7pjh2NcAP4gt59b0oEkrFff5jLe0",
+  authDomain: "maze-breakout.firebaseapp.com",
+  projectId: "maze-breakout",
+  storageBucket: "maze-breakout.firebasestorage.app",
+  messagingSenderId: "893434134895",
+  appId: "1:893434134895:web:d57610771645f6fc37e89a",
+  measurementId: "G-FWE12JHTMV"
 };
 
+// Initialize Firebase
 export const app = initializeApp(firebaseConfig);

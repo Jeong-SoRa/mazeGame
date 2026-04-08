@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { User } from 'firebase/auth';
 import { useGame } from '../store/gameStore';
 import { logout } from '../firebase/auth';
+import { loadProgress } from '../firebase/firestore';
 import RankingModal from './RankingModal';
 
 interface Props {
@@ -11,10 +12,21 @@ interface Props {
 const STAGE_EMOJIS = ['🌱','🌿','🌲','🏔️','⛰️','🌋','🏜️','🌊','❄️','🌀','💀','☠️','👻','🧟','🐺','🧛','👹','🐲','🔮','👑'];
 
 export default function StageSelect({ user }: Props) {
-  const { dispatch } = useGame();
+  const { state, dispatch } = useGame();
   const [rankingStage, setRankingStage] = useState<number | null>(null);
 
+  useEffect(() => {
+    loadProgress(user.uid).then(maxCleared => {
+      if (maxCleared > state.maxClearedStage) {
+        dispatch({ type: 'SET_MAX_CLEARED_STAGE', stage: maxCleared });
+      }
+    });
+  }, [user.uid]);
+
+  const unlockedUpTo = state.maxClearedStage + 1;
+
   function startStage(stage: number) {
+    if (stage > unlockedUpTo) return;
     dispatch({ type: 'INIT_STAGE', stage });
   }
 
@@ -66,51 +78,67 @@ export default function StageSelect({ user }: Props) {
             const difficulty = stage <= 5 ? '초급' : stage <= 10 ? '중급' : stage <= 15 ? '고급' : '전설';
             const diffColor = stage <= 5 ? '#22c55e' : stage <= 10 ? '#3b82f6' : stage <= 15 ? '#a855f7' : '#f59e0b';
             const mazeSize = 2 * (5 + stage) + 1;
+            const locked = stage > unlockedUpTo;
+            const cleared = stage <= state.maxClearedStage;
 
             return (
               <div key={stage} style={{
-                background: '#1a1a2e',
-                border: '1px solid #2a2a4e',
+                background: locked ? '#0f0f1a' : '#1a1a2e',
+                border: `1px solid ${cleared ? '#6366f1' : locked ? '#1a1a2e' : '#2a2a4e'}`,
                 borderRadius: 10,
                 padding: '14px 8px',
                 textAlign: 'center',
-                cursor: 'pointer',
+                cursor: locked ? 'not-allowed' : 'pointer',
                 transition: 'all 0.15s',
+                opacity: locked ? 0.45 : 1,
               }}
                 onMouseEnter={e => {
+                  if (locked) return;
                   (e.currentTarget as HTMLDivElement).style.borderColor = '#6366f1';
                   (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
                 }}
                 onMouseLeave={e => {
-                  (e.currentTarget as HTMLDivElement).style.borderColor = '#2a2a4e';
+                  if (locked) return;
+                  (e.currentTarget as HTMLDivElement).style.borderColor = cleared ? '#6366f1' : '#2a2a4e';
                   (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
                 }}
               >
-                <div style={{ fontSize: 28, marginBottom: 4 }}>{STAGE_EMOJIS[stage - 1]}</div>
-                <div style={{ color: '#fff', fontWeight: 700, fontSize: 16, marginBottom: 2 }}>
+                <div style={{ fontSize: 28, marginBottom: 4 }}>
+                  {locked ? '🔒' : STAGE_EMOJIS[stage - 1]}
+                </div>
+                <div style={{ color: locked ? '#4b5563' : '#fff', fontWeight: 700, fontSize: 16, marginBottom: 2 }}>
                   Stage {stage}
                 </div>
-                <div style={{ color: diffColor, fontSize: 11, marginBottom: 4 }}>{difficulty}</div>
+                <div style={{ color: locked ? '#374151' : diffColor, fontSize: 11, marginBottom: 4 }}>{difficulty}</div>
                 <div style={{ color: '#6b7280', fontSize: 10, marginBottom: 10 }}>
                   {mazeSize}×{mazeSize}
                 </div>
+                {cleared && (
+                  <div style={{ color: '#6366f1', fontSize: 10, marginBottom: 6 }}>✓ 클리어</div>
+                )}
                 <div style={{ display: 'flex', gap: 4, justifyContent: 'center' }}>
                   <button
                     onClick={() => startStage(stage)}
+                    disabled={locked}
                     style={{
-                      background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                      color: '#fff', border: 'none', borderRadius: 6,
-                      padding: '5px 10px', fontSize: 11, cursor: 'pointer', fontWeight: 600,
+                      background: locked ? '#1f2937' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                      color: locked ? '#4b5563' : '#fff', border: 'none', borderRadius: 6,
+                      padding: '5px 10px', fontSize: 11,
+                      cursor: locked ? 'not-allowed' : 'pointer', fontWeight: 600,
                     }}
                   >
-                    시작
+                    {locked ? '잠금' : '시작'}
                   </button>
                   <button
-                    onClick={() => setRankingStage(stage)}
+                    onClick={() => !locked && setRankingStage(stage)}
+                    disabled={locked}
                     style={{
                       background: 'transparent',
-                      color: '#f59e0b', border: '1px solid #f59e0b', borderRadius: 6,
-                      padding: '5px 8px', fontSize: 11, cursor: 'pointer',
+                      color: locked ? '#374151' : '#f59e0b',
+                      border: `1px solid ${locked ? '#374151' : '#f59e0b'}`,
+                      borderRadius: 6,
+                      padding: '5px 8px', fontSize: 11,
+                      cursor: locked ? 'not-allowed' : 'pointer',
                     }}
                   >
                     🏆

@@ -9,11 +9,34 @@ import {
   limit,
   getDocs,
   serverTimestamp,
+  updateDoc,
 } from 'firebase/firestore';
 import { app } from './config';
 import type { RankingEntry } from '../types/game.types';
 
 export const db = getFirestore(app);
+
+// 유저 진행도 저장
+export async function saveProgress(uid: string, maxClearedStage: number): Promise<void> {
+  const ref = doc(db, 'users', uid);
+  const snap = await getDoc(ref);
+  if (snap.exists()) {
+    const current = snap.data().maxClearedStage ?? 0;
+    if (maxClearedStage > current) {
+      await updateDoc(ref, { maxClearedStage });
+    }
+  } else {
+    await setDoc(ref, { maxClearedStage });
+  }
+}
+
+// 유저 진행도 로드
+export async function loadProgress(uid: string): Promise<number> {
+  const ref = doc(db, 'users', uid);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return 0;
+  return snap.data().maxClearedStage ?? 0;
+}
 
 // 스테이지 클리어 기록 저장 (최고 기록만 갱신)
 export async function saveRanking(

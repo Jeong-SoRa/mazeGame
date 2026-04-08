@@ -21,6 +21,7 @@ function createInitialPlayer(): PlayerState {
 const initialState: GameState = {
   screen: 'stage-select',
   stage: 1,
+  maxClearedStage: 0,
   maze: [],
   mazeSize: 0,
   playerPos: { x: 1, y: 1 },
@@ -134,6 +135,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           visitedCells: newVisited,
           screen: 'stage-clear',
           completionTime: state.elapsedSeconds,
+          maxClearedStage: Math.max(state.maxClearedStage, state.stage),
         };
       }
 
@@ -178,6 +180,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             visitedCells: newVisited,
             screen: 'stage-clear',
             completionTime: state.elapsedSeconds,
+            maxClearedStage: Math.max(state.maxClearedStage, state.stage),
             combatState: null,
             activeModal: null,
           };
@@ -396,8 +399,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, message: null };
     }
 
+    case 'SET_MAX_CLEARED_STAGE': {
+      return { ...state, maxClearedStage: Math.max(state.maxClearedStage, action.stage) };
+    }
+
     case 'RETURN_TO_SELECT': {
-      return { ...initialState };
+      return { ...initialState, maxClearedStage: state.maxClearedStage };
     }
 
     default:

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { User } from 'firebase/auth';
 import { useGame } from '../store/gameStore';
-import { saveRanking, fetchMyBest } from '../firebase/firestore';
+import { saveRanking, fetchMyBest, saveProgress } from '../firebase/firestore';
 import RankingModal from './RankingModal';
 import type { RankingEntry } from '../types/game.types';
 
@@ -17,7 +17,7 @@ function formatTime(seconds: number): string {
 
 export default function StageClear({ user }: Props) {
   const { state, dispatch } = useGame();
-  const { stage, steps, completionTime } = state;
+  const { stage, steps, completionTime, maxClearedStage } = state;
   const time = completionTime ?? 0;
 
   const [saved, setSaved] = useState(false);
@@ -33,8 +33,9 @@ export default function StageClear({ user }: Props) {
         if (!prev || steps < prev.steps) {
           setIsNewBest(true);
         }
-        // 랭킹 저장
+        // 랭킹 저장 + 진행도 저장
         await saveRanking(user.uid, user.displayName ?? '익명', user.photoURL ?? '', stage, steps, time);
+        await saveProgress(user.uid, maxClearedStage);
         setSaved(true);
         const best = await fetchMyBest(user.uid, stage);
         setMyBest(best);

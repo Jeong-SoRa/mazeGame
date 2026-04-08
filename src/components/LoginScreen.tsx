@@ -23,10 +23,12 @@ export default function LoginScreen() {
       <div style={{ textAlign: 'center', marginBottom: 16 }}>
         <div style={{ fontSize: 80, marginBottom: 16 }}>🗺️</div>
         <h1 style={{ fontSize: 36, fontWeight: 800, color: '#a78bfa', marginBottom: 8 }}>
-          미로 탈출
+          Breaking Maze
         </h1>
         <p style={{ color: '#9ca3af', fontSize: 16 }}>
-          어둠 속에서 길을 찾아 탈출하라
+          어둠 속에서 
+          무기를 만들고
+          길을 찾아 탈출하라
         </p>
       </div>
 

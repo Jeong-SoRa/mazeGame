@@ -70,20 +70,6 @@
     #crosshair::before { width: 14px; height: 2px; top: 0; left: -7px; }
     #crosshair::after  { width: 2px; height: 14px; top: -7px; left: 0; }
     /* HUD 하단 */
-    #hud {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 6px 12px;
-      background: rgba(0,0,20,0.9);
-      border: 1px solid #1e3a5f;
-      border-top: none;
-      border-radius: 0 0 4px 4px;
-      font-size: 13px;
-    }
-    #hud-left { color: #94a3b8; }
-    #hud-center { color: #7dd3fc; font-size: 11px; }
-    #hud-right { color: #f0abfc; }
     /* 안내 오버레이 */
     #overlay {
       position: absolute;
@@ -136,17 +122,158 @@
       letter-spacing: 2px;
     }
     #restart-btn:hover { background: #166534; }
+    /* HUD 전체 */
+    #hud {
+      background: rgba(0,0,20,0.95);
+      border: 1px solid #1e3a5f;
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      padding: 6px 10px;
+      font-size: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    /* 바 영역 */
+    #hud-bars {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .bar-group {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      min-width: 140px;
+    }
+    .bar-track {
+      flex: 1;
+      background: #1e293b;
+      border-radius: 4px;
+      height: 9px;
+      min-width: 80px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.3s, background 0.3s;
+    }
+    .bar-fill.hp  { background: #22c55e; }
+    .bar-fill.mp  { background: #3b82f6; }
+    .bar-label { font-size: 11px; min-width: 50px; }
+    /* 정보 줄 */
+    #hud-info {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      color: #9ca3af;
+    }
+    #hud-info b { color: #e5e7eb; }
+    #hud-info .cyan b  { color: #67e8f9; }
+    #hud-info .yellow b { color: #fbbf24; }
+    #hud-info .purple b { color: #a78bfa; }
+    /* 스탯/장비 줄 */
+    #hud-stats {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      color: #9ca3af;
+    }
+    #hud-stats b { color: #e5e7eb; }
+    .stat-badge {
+      background: #1e293b;
+      border: 1px solid #374151;
+      border-radius: 5px;
+      padding: 1px 7px;
+      font-size: 11px;
+      color: #d1d5db;
+    }
+    /* 인벤토리 버튼 */
+    #inv-btn {
+      margin-left: auto;
+      background: #1e293b;
+      border: 1px solid #6366f1;
+      color: #a5b4fc;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    #inv-btn:hover { background: #2e3a5c; }
+    /* 인벤토리 패널 */
+    #inventory-panel {
+      display: none;
+      position: absolute;
+      top: 0; right: 0;
+      width: 220px;
+      height: 100%;
+      background: rgba(10,10,30,0.97);
+      border-left: 1px solid #334155;
+      z-index: 20;
+      flex-direction: column;
+    }
+    #inventory-panel.open { display: flex; }
+    #inv-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      border-bottom: 1px solid #334155;
+      color: #7dd3fc;
+      font-size: 13px;
+      font-weight: bold;
+    }
+    #inv-close {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 16px;
+      cursor: pointer;
+      line-height: 1;
+    }
+    #inv-close:hover { color: #f87171; }
+    #inv-items {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .inv-item {
+      background: #1e293b;
+      border: 1px solid #374151;
+      border-radius: 6px;
+      padding: 6px 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #d1d5db;
+    }
+    .inv-item-emoji { font-size: 18px; }
+    .inv-item-name  { flex: 1; }
+    .inv-item-qty   { color: #6b7280; font-size: 11px; }
+    #inv-empty {
+      color: #4b5563;
+      font-size: 12px;
+      text-align: center;
+      padding: 20px 0;
+    }
     /* 모바일 방향키 */
     #touch-controls {
       display: none;
-      justify-content: space-between;
+      justify-content: center;
       padding: 8px;
       gap: 8px;
     }
-    #move-pad, #turn-pad {
+    #move-pad {
       display: grid;
-      grid-template-columns: repeat(3, 48px);
-      grid-template-rows: repeat(2, 48px);
+      grid-template-columns: repeat(3, 52px);
+      grid-template-rows: repeat(2, 52px);
       gap: 4px;
     }
     .pad-btn {
@@ -178,11 +305,20 @@
     <canvas id="minimap"></canvas>
     <div id="crosshair"></div>
 
+    <!-- 인벤토리 패널 -->
+    <div id="inventory-panel">
+      <div id="inv-header">
+        <span>🎒 인벤토리</span>
+        <button id="inv-close">✕</button>
+      </div>
+      <div id="inv-items"></div>
+    </div>
+
     <div id="overlay">
       <h2>⚔ DUNGEON MAZE</h2>
       <p>1인칭 시점으로 미로를 탐험하세요</p>
       <p style="font-size:12px; color:#475569;">
-        W/↑ 앞으로 &nbsp;|&nbsp; S/↓ 뒤로 &nbsp;|&nbsp; A/← 왼쪽 회전 &nbsp;|&nbsp; D/→ 오른쪽 회전
+        W/↑ 앞으로 &nbsp;|&nbsp; S/↓ 뒤로 &nbsp;|&nbsp; ←/A 왼쪽 회전 &nbsp;|&nbsp; →/D 오른쪽 회전
       </p>
       <button id="start-btn">탐험 시작</button>
     </div>
@@ -194,10 +330,46 @@
     </div>
   </div>
 
+  <!-- HUD -->
   <div id="hud">
-    <div id="hud-left">위치: <span id="pos-info">-</span></div>
-    <div id="hud-center">W/S: 이동 &nbsp; A/D: 회전</div>
-    <div id="hud-right">출구까지: <span id="dist-info">-</span></div>
+    <!-- 바 영역 -->
+    <div id="hud-bars">
+      <div class="bar-group">
+        <span>❤️</span>
+        <div class="bar-track">
+          <div id="hp-bar" class="bar-fill hp" style="width:100%"></div>
+        </div>
+        <span class="bar-label" id="hp-text" style="color:#22c55e;">100/100</span>
+      </div>
+      <div class="bar-group">
+        <span>💧</span>
+        <div class="bar-track">
+          <div id="mp-bar" class="bar-fill mp" style="width:75%"></div>
+        </div>
+        <span class="bar-label" id="mp-text" style="color:#3b82f6;">60/80</span>
+      </div>
+      <button id="inv-btn">🎒 인벤토리</button>
+    </div>
+
+    <!-- 정보 줄 -->
+    <div id="hud-info">
+      <span>👣 <b id="steps-info">0</b></span>
+      <span>⏱ <b id="time-info">00:00</b></span>
+      <span class="purple">🗺 Stage <b id="stage-info">1</b></span>
+      <span class="cyan">🚪 출구: <b id="exit-info">-</b></span>
+      <span class="yellow">📍 위치: <b id="pos-info">-</b></span>
+      <span>🧭 거리: <b id="dist-info">-</b></span>
+    </div>
+
+    <!-- 스탯 줄 -->
+    <div id="hud-stats">
+      <span>⚔️ <b id="atk-info" style="color:#fca5a5;">15</b></span>
+      <span>🛡️ <b id="def-info" style="color:#93c5fd;">8</b></span>
+      <span class="stat-badge" id="weapon-info">⚔️ 맨손</span>
+      <span class="stat-badge" id="armor-info">🛡️ 없음</span>
+      <span style="color:#6b7280;">미로: <b style="color:#9ca3af;">21×21</b></span>
+      <span style="color:#6b7280;">아이템: <b id="item-count" style="color:#9ca3af;">0</b>개</span>
+    </div>
   </div>
 
   <!-- 모바일 터치 컨트롤 -->
@@ -206,17 +378,9 @@
       <div></div>
       <button class="pad-btn" id="btn-forward">↑</button>
       <div></div>
-      <button class="pad-btn" id="btn-strafeleft">↰</button>
+      <button class="pad-btn" id="btn-turnleft">←</button>
       <button class="pad-btn" id="btn-backward">↓</button>
-      <button class="pad-btn" id="btn-straferight">↱</button>
-    </div>
-    <div id="turn-pad">
-      <div></div>
-      <div></div>
-      <div></div>
-      <button class="pad-btn" id="btn-turnleft">◁</button>
-      <div></div>
-      <button class="pad-btn" id="btn-turnright">▷</button>
+      <button class="pad-btn" id="btn-turnright">→</button>
     </div>
   </div>
 </div>
@@ -250,11 +414,23 @@ function generateMaze(size) {
 //  게임 상태
 // ──────────────────────────────────────────
 let maze, W, H;
-let player = { x: 1.5, y: 1.5, angle: 0 };
+let player = { x: 1.5, y: 1.5, angle: 0, hp: 100, maxHp: 100, mp: 60, maxMp: 80 };
 let targetAngle = 0;   // 90도 스냅 목표 각도
 let steps = 0;
 let running = false;
 let animId = null;
+let elapsedSeconds = 0;
+let lastTimestamp = null;
+const PLAYER_ATK = 15;
+const PLAYER_DEF = 8;
+const STAGE = 1;
+
+const inventory = [
+  { name: '회복 포션', emoji: '🧪', qty: 3 },
+  { name: '마나 포션', emoji: '💧', qty: 2 },
+  { name: '낡은 검',   emoji: '⚔️',  qty: 1 },
+  { name: '가죽 갑옷', emoji: '🥋',  qty: 1 },
+];
 
 const EXIT = { x: MAZE_SIZE - 1.5, y: MAZE_SIZE - 1.5 };
 const MOVE_SPEED  = 0.055;
@@ -405,11 +581,23 @@ function drawExitIndicator() {
   const dist = Math.sqrt(dx*dx + dy*dy);
   const inFOV = Math.abs(relAngle) < FOV/2;
 
-  // 거리 HUD 갱신
-  document.getElementById('dist-info').textContent =
-    (dist * 2).toFixed(1) + ' 칸';
-  document.getElementById('pos-info').textContent =
-    `${Math.floor(player.x)}, ${Math.floor(player.y)}`;
+  // HUD 갱신
+  document.getElementById('dist-info').textContent = (dist * 2).toFixed(1) + ' 칸';
+  document.getElementById('pos-info').textContent  = `${Math.floor(player.x)}, ${Math.floor(player.y)}`;
+  document.getElementById('exit-info').textContent = `${MAZE_SIZE-2}, ${MAZE_SIZE-2}`;
+  document.getElementById('steps-info').textContent = steps;
+  document.getElementById('stage-info').textContent = STAGE;
+
+  const hpPct = (player.hp / player.maxHp) * 100;
+  const hpColor = hpPct > 60 ? '#22c55e' : hpPct > 30 ? '#f59e0b' : '#ef4444';
+  document.getElementById('hp-bar').style.width = hpPct + '%';
+  document.getElementById('hp-bar').style.background = hpColor;
+  document.getElementById('hp-text').textContent = `${player.hp}/${player.maxHp}`;
+  document.getElementById('hp-text').style.color = hpColor;
+
+  const mpPct = (player.mp / player.maxMp) * 100;
+  document.getElementById('mp-bar').style.width = mpPct + '%';
+  document.getElementById('mp-text').textContent = `${player.mp}/${player.maxMp}`;
 
   // 화면 가장자리에 출구 방향 삼각형
   if (!inFOV) {
@@ -484,8 +672,21 @@ function isWall(x, y) {
 // ──────────────────────────────────────────
 //  게임 루프
 // ──────────────────────────────────────────
-function update() {
+function formatTime(sec) {
+  const m = Math.floor(sec / 60).toString().padStart(2, '0');
+  const s = (sec % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
+
+function update(timestamp) {
   if (!running) return;
+
+  // 타이머
+  if (lastTimestamp !== null) {
+    elapsedSeconds += (timestamp - lastTimestamp) / 1000;
+  }
+  lastTimestamp = timestamp;
+  document.getElementById('time-info').textContent = formatTime(Math.floor(elapsedSeconds));
 
   const move = MOVE_SPEED;
   let moved = false;
@@ -546,22 +747,42 @@ function update() {
   drawScene();
   drawMinimap();
   animId = requestAnimationFrame(update);
+
 }
 
 // ──────────────────────────────────────────
 //  초기화
 // ──────────────────────────────────────────
+function renderInventory() {
+  const container = document.getElementById('inv-items');
+  if (inventory.length === 0) {
+    container.innerHTML = '<div id="inv-empty">아이템 없음</div>';
+    return;
+  }
+  container.innerHTML = inventory.map(item => `
+    <div class="inv-item">
+      <span class="inv-item-emoji">${item.emoji}</span>
+      <span class="inv-item-name">${item.name}</span>
+      <span class="inv-item-qty">×${item.qty}</span>
+    </div>
+  `).join('');
+  document.getElementById('item-count').textContent = inventory.reduce((s,i) => s + i.qty, 0);
+}
+
 function initGame() {
   maze = generateMaze(MAZE_SIZE);
-  player = { x: 1.5, y: 1.5, angle: 0 };
+  player = { x: 1.5, y: 1.5, angle: 0, hp: 100, maxHp: 100, mp: 60, maxMp: 80 };
   targetAngle = 0;
   steps = 0;
+  elapsedSeconds = 0;
+  lastTimestamp = null;
   running = true;
   if (animId) cancelAnimationFrame(animId);
   document.getElementById('clear-msg').style.display = 'none';
   document.getElementById('overlay').style.display = 'none';
   resizeCanvas();
-  update();
+  renderInventory();
+  requestAnimationFrame(update);
 }
 
 // ──────────────────────────────────────────
@@ -590,6 +811,16 @@ document.getElementById('restart-btn').addEventListener('click', initGame);
 window.addEventListener('resize', () => { if (running) resizeCanvas(); });
 
 // ──────────────────────────────────────────
+//  인벤토리 토글
+// ──────────────────────────────────────────
+document.getElementById('inv-btn').addEventListener('click', () => {
+  document.getElementById('inventory-panel').classList.toggle('open');
+});
+document.getElementById('inv-close').addEventListener('click', () => {
+  document.getElementById('inventory-panel').classList.remove('open');
+});
+
+// ──────────────────────────────────────────
 //  모바일 터치 버튼
 // ──────────────────────────────────────────
 function bindTouchBtn(id, key) {
@@ -599,12 +830,10 @@ function bindTouchBtn(id, key) {
   btn.addEventListener('pointerup',   () => { keys[key] = false; });
   btn.addEventListener('pointerleave',() => { keys[key] = false; });
 }
-bindTouchBtn('btn-forward',     'w');
-bindTouchBtn('btn-backward',    's');
-bindTouchBtn('btn-strafeleft',  'q');
-bindTouchBtn('btn-straferight', 'e');
+bindTouchBtn('btn-forward',  'w');
+bindTouchBtn('btn-backward', 's');
 
-// 회전 버튼: 누를 때마다 90도 스냅
+// 좌우 화살표 → 90도 스냅 회전
 const btnL = document.getElementById('btn-turnleft');
 const btnR = document.getElementById('btn-turnright');
 if (btnL) btnL.addEventListener('pointerdown', () => { targetAngle -= Math.PI / 2; });

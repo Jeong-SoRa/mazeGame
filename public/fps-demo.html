@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>미로 1인칭 탐험 - 데모</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a14;
+      color: #e0e0f0;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    #game-container {
+      position: relative;
+      width: 800px;
+      max-width: 100vw;
+    }
+    #title-bar {
+      text-align: center;
+      padding: 8px;
+      color: #7dd3fc;
+      font-size: 13px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      border-bottom: 1px solid #1e3a5f;
+      margin-bottom: 6px;
+    }
+    #main-view {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #000;
+      border: 1px solid #1e3a5f;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    #raycast-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    /* 미니맵 */
+    #minimap {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      border: 1px solid #334155;
+      background: rgba(0,0,0,0.75);
+      border-radius: 3px;
+    }
+    /* 조준점 */
+    #crosshair {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+    }
+    #crosshair::before, #crosshair::after {
+      content: '';
+      position: absolute;
+      background: rgba(255,255,255,0.6);
+    }
+    #crosshair::before { width: 14px; height: 2px; top: 0; left: -7px; }
+    #crosshair::after  { width: 2px; height: 14px; top: -7px; left: 0; }
+    /* HUD 하단 */
+    #hud {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 12px;
+      background: rgba(0,0,20,0.9);
+      border: 1px solid #1e3a5f;
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      font-size: 13px;
+    }
+    #hud-left { color: #94a3b8; }
+    #hud-center { color: #7dd3fc; font-size: 11px; }
+    #hud-right { color: #f0abfc; }
+    /* 안내 오버레이 */
+    #overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      z-index: 10;
+    }
+    #overlay h2 { color: #7dd3fc; font-size: 22px; letter-spacing: 4px; }
+    #overlay p  { color: #94a3b8; font-size: 13px; }
+    #start-btn {
+      margin-top: 8px;
+      padding: 10px 32px;
+      background: #1e3a5f;
+      border: 1px solid #7dd3fc;
+      color: #7dd3fc;
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 4px;
+      letter-spacing: 2px;
+      transition: background 0.2s;
+    }
+    #start-btn:hover { background: #2563eb; }
+    /* 클리어 메시지 */
+    #clear-msg {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.82);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      z-index: 10;
+    }
+    #clear-msg h2 { color: #4ade80; font-size: 26px; letter-spacing: 3px; }
+    #clear-msg p  { color: #a3e635; font-size: 14px; }
+    #restart-btn {
+      padding: 10px 32px;
+      background: #14532d;
+      border: 1px solid #4ade80;
+      color: #4ade80;
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 4px;
+      letter-spacing: 2px;
+    }
+    #restart-btn:hover { background: #166534; }
+    /* 모바일 방향키 */
+    #touch-controls {
+      display: none;
+      justify-content: space-between;
+      padding: 8px;
+      gap: 8px;
+    }
+    #move-pad, #turn-pad {
+      display: grid;
+      grid-template-columns: repeat(3, 48px);
+      grid-template-rows: repeat(2, 48px);
+      gap: 4px;
+    }
+    .pad-btn {
+      background: rgba(30,58,92,0.9);
+      border: 1px solid #334155;
+      color: #7dd3fc;
+      font-size: 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    .pad-btn:active { background: #1d4ed8; }
+    @media (max-width: 600px) {
+      #touch-controls { display: flex; }
+    }
+  </style>
+</head>
+<body>
+<div id="game-container">
+  <div id="title-bar">🗺 MAZE DUNGEON — 1인칭 탐험 데모</div>
+
+  <div id="main-view">
+    <canvas id="raycast-canvas"></canvas>
+    <canvas id="minimap"></canvas>
+    <div id="crosshair"></div>
+
+    <div id="overlay">
+      <h2>⚔ DUNGEON MAZE</h2>
+      <p>1인칭 시점으로 미로를 탐험하세요</p>
+      <p style="font-size:12px; color:#475569;">
+        W/↑ 앞으로 &nbsp;|&nbsp; S/↓ 뒤로 &nbsp;|&nbsp; A/← 왼쪽 회전 &nbsp;|&nbsp; D/→ 오른쪽 회전
+      </p>
+      <button id="start-btn">탐험 시작</button>
+    </div>
+
+    <div id="clear-msg">
+      <h2>🚪 출구 발견!</h2>
+      <p id="clear-steps"></p>
+      <button id="restart-btn">다시 탐험</button>
+    </div>
+  </div>
+
+  <div id="hud">
+    <div id="hud-left">위치: <span id="pos-info">-</span></div>
+    <div id="hud-center">W/S: 이동 &nbsp; A/D: 회전</div>
+    <div id="hud-right">출구까지: <span id="dist-info">-</span></div>
+  </div>
+
+  <!-- 모바일 터치 컨트롤 -->
+  <div id="touch-controls">
+    <div id="move-pad">
+      <div></div>
+      <button class="pad-btn" id="btn-forward">↑</button>
+      <div></div>
+      <button class="pad-btn" id="btn-strafeleft">↰</button>
+      <button class="pad-btn" id="btn-backward">↓</button>
+      <button class="pad-btn" id="btn-straferight">↱</button>
+    </div>
+    <div id="turn-pad">
+      <div></div>
+      <div></div>
+      <div></div>
+      <button class="pad-btn" id="btn-turnleft">◁</button>
+      <div></div>
+      <button class="pad-btn" id="btn-turnright">▷</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ──────────────────────────────────────────
+//  미로 생성 (재귀 역추적)
+// ──────────────────────────────────────────
+const MAZE_SIZE = 21; // 홀수
+
+function generateMaze(size) {
+  const maze = Array.from({ length: size }, () => Array(size).fill(0));
+  function carve(x, y) {
+    const dirs = [[0,-2],[0,2],[-2,0],[2,0]].sort(() => Math.random() - 0.5);
+    for (const [dx, dy] of dirs) {
+      const nx = x + dx, ny = y + dy;
+      if (nx > 0 && nx < size-1 && ny > 0 && ny < size-1 && maze[ny][nx] === 0) {
+        maze[y+dy/2][x+dx/2] = 1;
+        maze[ny][nx] = 1;
+        carve(nx, ny);
+      }
+    }
+  }
+  maze[1][1] = 1;
+  carve(1, 1);
+  maze[size-2][size-2] = 1; // 출구
+  return maze;
+}
+
+// ──────────────────────────────────────────
+//  게임 상태
+// ──────────────────────────────────────────
+let maze, W, H;
+let player = { x: 1.5, y: 1.5, angle: 0 };
+let steps = 0;
+let running = false;
+let animId = null;
+
+const EXIT = { x: MAZE_SIZE - 1.5, y: MAZE_SIZE - 1.5 };
+const MOVE_SPEED  = 0.055;
+const TURN_SPEED  = 0.040;
+const FOV         = Math.PI / 3;       // 60°
+const NUM_RAYS    = 320;
+const MAX_DEPTH   = MAZE_SIZE * 1.5;
+const HALF_PI     = Math.PI / 2;
+
+const keys = {};
+
+// ──────────────────────────────────────────
+//  캔버스 설정
+// ──────────────────────────────────────────
+const canvas  = document.getElementById('raycast-canvas');
+const ctx     = canvas.getContext('2d');
+const mmCanvas = document.getElementById('minimap');
+const mmCtx   = mmCanvas.getContext('2d');
+
+function resizeCanvas() {
+  const view = document.getElementById('main-view');
+  canvas.width  = view.clientWidth;
+  canvas.height = view.clientHeight;
+  W = canvas.width;
+  H = canvas.height;
+
+  const mmS = Math.min(110, view.clientWidth * 0.15);
+  mmCanvas.width  = mmS;
+  mmCanvas.height = mmS;
+  mmCanvas.style.width  = mmS + 'px';
+  mmCanvas.style.height = mmS + 'px';
+}
+
+// ──────────────────────────────────────────
+//  레이캐스팅
+// ──────────────────────────────────────────
+function castRay(angle) {
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  let dist = 0;
+  let hit  = false;
+  let side = 0; // 0=수직벽, 1=수평벽
+
+  // DDA 알고리즘
+  let rayX = player.x;
+  let rayY = player.y;
+
+  const deltaDistX = Math.abs(1 / (cos || 1e-10));
+  const deltaDistY = Math.abs(1 / (sin || 1e-10));
+
+  let mapX = Math.floor(rayX);
+  let mapY = Math.floor(rayY);
+
+  let stepX, stepY;
+  let sideDistX, sideDistY;
+
+  if (cos < 0) { stepX = -1; sideDistX = (rayX - mapX) * deltaDistX; }
+  else          { stepX =  1; sideDistX = (mapX + 1 - rayX) * deltaDistX; }
+  if (sin < 0) { stepY = -1; sideDistY = (rayY - mapY) * deltaDistY; }
+  else          { stepY =  1; sideDistY = (mapY + 1 - rayY) * deltaDistY; }
+
+  for (let i = 0; i < MAX_DEPTH * 10; i++) {
+    if (sideDistX < sideDistY) {
+      sideDistX += deltaDistX;
+      mapX += stepX;
+      side = 0;
+    } else {
+      sideDistY += deltaDistY;
+      mapY += stepY;
+      side = 1;
+    }
+    if (mapX < 0 || mapX >= MAZE_SIZE || mapY < 0 || mapY >= MAZE_SIZE) break;
+    if (maze[mapY][mapX] === 0) {
+      hit = true;
+      dist = side === 0 ? (mapX - rayX + (1 - stepX) / 2) / cos
+                        : (mapY - rayY + (1 - stepY) / 2) / sin;
+      dist = Math.abs(dist);
+      break;
+    }
+  }
+  return { dist: hit ? dist : MAX_DEPTH, side };
+}
+
+// ──────────────────────────────────────────
+//  렌더링
+// ──────────────────────────────────────────
+function drawScene() {
+  // 천장
+  const ceilGrad = ctx.createLinearGradient(0, 0, 0, H/2);
+  ceilGrad.addColorStop(0, '#050508');
+  ceilGrad.addColorStop(1, '#0d0d1a');
+  ctx.fillStyle = ceilGrad;
+  ctx.fillRect(0, 0, W, H/2);
+
+  // 바닥
+  const floorGrad = ctx.createLinearGradient(0, H/2, 0, H);
+  floorGrad.addColorStop(0, '#0f1117');
+  floorGrad.addColorStop(1, '#070709');
+  ctx.fillStyle = floorGrad;
+  ctx.fillRect(0, H/2, W, H/2);
+
+  const sliceW = W / NUM_RAYS;
+
+  for (let i = 0; i < NUM_RAYS; i++) {
+    const rayAngle = player.angle - FOV/2 + (i / NUM_RAYS) * FOV;
+    const { dist, side } = castRay(rayAngle);
+
+    // 어안렌즈 보정
+    const corrected = dist * Math.cos(rayAngle - player.angle);
+    const sliceH = Math.min(H, H / corrected);
+
+    const top    = (H - sliceH) / 2;
+    const bright = Math.max(0, 1 - corrected / (MAZE_SIZE * 0.8));
+
+    // 벽 색상 (거리 & 면 기반 음영)
+    const base = side === 0 ? 200 : 150;
+    const v    = Math.floor(base * bright);
+    // 약간 푸른 던전 톤
+    const r = Math.floor(v * 0.35);
+    const g = Math.floor(v * 0.45);
+    const b = Math.floor(v * 0.75);
+
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.fillRect(i * sliceW, top, Math.ceil(sliceW), sliceH);
+
+    // 바닥 반사 (얇은 그라데이션 슬라이스)
+    const refAlpha = bright * 0.18;
+    const refGrad = ctx.createLinearGradient(0, top + sliceH, 0, top + sliceH * 1.15);
+    refGrad.addColorStop(0, `rgba(${r},${g},${b},${refAlpha})`);
+    refGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = refGrad;
+    ctx.fillRect(i * sliceW, top + sliceH, Math.ceil(sliceW), sliceH * 0.15);
+  }
+
+  // 출구 방향 화살표 (화면 가장자리)
+  drawExitIndicator();
+}
+
+function drawExitIndicator() {
+  const dx = EXIT.x - player.x;
+  const dy = EXIT.y - player.y;
+  const angleToExit = Math.atan2(dy, dx);
+  let relAngle = angleToExit - player.angle;
+  // -π ~ π 정규화
+  while (relAngle >  Math.PI) relAngle -= 2 * Math.PI;
+  while (relAngle < -Math.PI) relAngle += 2 * Math.PI;
+
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  const inFOV = Math.abs(relAngle) < FOV/2;
+
+  // 거리 HUD 갱신
+  document.getElementById('dist-info').textContent =
+    (dist * 2).toFixed(1) + ' 칸';
+  document.getElementById('pos-info').textContent =
+    `${Math.floor(player.x)}, ${Math.floor(player.y)}`;
+
+  // 화면 가장자리에 출구 방향 삼각형
+  if (!inFOV) {
+    const side = relAngle < 0 ? 'left' : 'right';
+    const ex = side === 'left' ? 20 : W - 20;
+    const ey = H / 2 + Math.tan(relAngle) * W * 0.4;
+    const clampedEy = Math.max(30, Math.min(H - 30, ey));
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,200,255,0.75)';
+    ctx.beginPath();
+    if (side === 'right') {
+      ctx.moveTo(ex, clampedEy);
+      ctx.lineTo(ex - 14, clampedEy - 7);
+      ctx.lineTo(ex - 14, clampedEy + 7);
+    } else {
+      ctx.moveTo(ex, clampedEy);
+      ctx.lineTo(ex + 14, clampedEy - 7);
+      ctx.lineTo(ex + 14, clampedEy + 7);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ──────────────────────────────────────────
+//  미니맵 렌더링
+// ──────────────────────────────────────────
+function drawMinimap() {
+  const ms  = mmCanvas.width;
+  const cs  = ms / MAZE_SIZE;
+  mmCtx.clearRect(0, 0, ms, ms);
+
+  for (let y = 0; y < MAZE_SIZE; y++) {
+    for (let x = 0; x < MAZE_SIZE; x++) {
+      mmCtx.fillStyle = maze[y][x] === 0 ? '#0d1117' : '#1e3a5f';
+      mmCtx.fillRect(x * cs, y * cs, cs, cs);
+    }
+  }
+
+  // 출구
+  mmCtx.fillStyle = '#00ccff';
+  mmCtx.fillRect((MAZE_SIZE-2) * cs, (MAZE_SIZE-2) * cs, cs, cs);
+
+  // 플레이어
+  const px = player.x * cs;
+  const py = player.y * cs;
+  mmCtx.fillStyle = '#00ff88';
+  mmCtx.beginPath();
+  mmCtx.arc(px, py, cs * 1.1, 0, Math.PI * 2);
+  mmCtx.fill();
+
+  // 시야 방향선
+  mmCtx.strokeStyle = 'rgba(0,255,136,0.6)';
+  mmCtx.lineWidth = 1;
+  mmCtx.beginPath();
+  mmCtx.moveTo(px, py);
+  mmCtx.lineTo(px + Math.cos(player.angle) * cs * 3, py + Math.sin(player.angle) * cs * 3);
+  mmCtx.stroke();
+}
+
+// ──────────────────────────────────────────
+//  충돌 감지
+// ──────────────────────────────────────────
+function isWall(x, y) {
+  const mx = Math.floor(x);
+  const my = Math.floor(y);
+  if (mx < 0 || mx >= MAZE_SIZE || my < 0 || my >= MAZE_SIZE) return true;
+  return maze[my][mx] === 0;
+}
+
+// ──────────────────────────────────────────
+//  게임 루프
+// ──────────────────────────────────────────
+function update() {
+  if (!running) return;
+
+  const move = MOVE_SPEED;
+  const turn = TURN_SPEED;
+  let moved = false;
+
+  if (keys['ArrowLeft']  || keys['a'] || keys['A']) { player.angle -= turn; moved = true; }
+  if (keys['ArrowRight'] || keys['d'] || keys['D']) { player.angle += turn; moved = true; }
+
+  const cos = Math.cos(player.angle);
+  const sin = Math.sin(player.angle);
+  const nx_fwd = player.x + cos * move;
+  const ny_fwd = player.y + sin * move;
+  const nx_bwd = player.x - cos * move;
+  const ny_bwd = player.y - sin * move;
+
+  if (keys['ArrowUp'] || keys['w'] || keys['W']) {
+    if (!isWall(nx_fwd + cos * 0.2, player.y)) player.x = nx_fwd;
+    if (!isWall(player.x, ny_fwd + sin * 0.2)) player.y = ny_fwd;
+    moved = true;
+  }
+  if (keys['ArrowDown'] || keys['s'] || keys['S']) {
+    if (!isWall(nx_bwd - cos * 0.2, player.y)) player.x = nx_bwd;
+    if (!isWall(player.x, ny_bwd - sin * 0.2)) player.y = ny_bwd;
+    moved = true;
+  }
+  // 좌우 이동 (Q/E)
+  const strafeAngle = player.angle + HALF_PI;
+  const sx = Math.cos(strafeAngle) * move;
+  const sy = Math.sin(strafeAngle) * move;
+  if (keys['q'] || keys['Q']) {
+    if (!isWall(player.x - sx, player.y)) player.x -= sx;
+    if (!isWall(player.x, player.y - sy)) player.y -= sy;
+    moved = true;
+  }
+  if (keys['e'] || keys['E']) {
+    if (!isWall(player.x + sx, player.y)) player.x += sx;
+    if (!isWall(player.x, player.y + sy)) player.y += sy;
+    moved = true;
+  }
+
+  if (moved) steps++;
+
+  // 출구 도착 체크
+  const dx = player.x - EXIT.x;
+  const dy = player.y - EXIT.y;
+  if (Math.sqrt(dx*dx + dy*dy) < 0.7) {
+    running = false;
+    const msg = document.getElementById('clear-msg');
+    document.getElementById('clear-steps').textContent = `총 이동: ${steps} 스텝`;
+    msg.style.display = 'flex';
+    return;
+  }
+
+  drawScene();
+  drawMinimap();
+  animId = requestAnimationFrame(update);
+}
+
+// ──────────────────────────────────────────
+//  초기화
+// ──────────────────────────────────────────
+function initGame() {
+  maze = generateMaze(MAZE_SIZE);
+  player = { x: 1.5, y: 1.5, angle: Math.PI / 4 };
+  steps = 0;
+  running = true;
+  if (animId) cancelAnimationFrame(animId);
+  document.getElementById('clear-msg').style.display = 'none';
+  document.getElementById('overlay').style.display = 'none';
+  resizeCanvas();
+  update();
+}
+
+// ──────────────────────────────────────────
+//  이벤트 리스너
+// ──────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  // 방향키 스크롤 방지
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) {
+    e.preventDefault();
+  }
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+
+document.getElementById('start-btn').addEventListener('click', initGame);
+document.getElementById('restart-btn').addEventListener('click', initGame);
+window.addEventListener('resize', () => { if (running) resizeCanvas(); });
+
+// ──────────────────────────────────────────
+//  모바일 터치 버튼
+// ──────────────────────────────────────────
+function bindTouchBtn(id, key) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  btn.addEventListener('pointerdown', () => { keys[key] = true; });
+  btn.addEventListener('pointerup',   () => { keys[key] = false; });
+  btn.addEventListener('pointerleave',() => { keys[key] = false; });
+}
+bindTouchBtn('btn-forward',     'w');
+bindTouchBtn('btn-backward',    's');
+bindTouchBtn('btn-turnleft',    'ArrowLeft');
+bindTouchBtn('btn-turnright',   'ArrowRight');
+bindTouchBtn('btn-strafeleft',  'q');
+bindTouchBtn('btn-straferight', 'e');
+
+// 초기 캔버스 크기
+resizeCanvas();
+</script>
+</body>
+</html>

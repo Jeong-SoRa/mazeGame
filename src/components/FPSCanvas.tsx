@@ -315,7 +315,10 @@ export default function FPSCanvas() {
       if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
       keysRef.current[e.key] = true;
 
-      if (activeModalRef.current !== null) return;
+      if (activeModalRef.current !== null) {
+        console.log('Modal is open, ignoring key input:', activeModalRef.current);
+        return;
+      }
 
       const isRepeat = lastKeyRef.current[e.key];
 
@@ -331,11 +334,15 @@ export default function FPSCanvas() {
 
       // 이동 (키 반복 허용)
       if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+        console.log('Up/W key pressed, angle:', targetAngleRef.current);
         const { dx, dy } = angleToDelta(targetAngleRef.current);
+        console.log('Move direction:', { dx, dy });
         dispatch({ type: 'MOVE', dx, dy });
       }
       if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+        console.log('Down/S key pressed, angle:', targetAngleRef.current);
         const { dx, dy } = angleToDelta(targetAngleRef.current);
+        console.log('Move direction:', { dx: -dx, dy: -dy });
         dispatch({ type: 'MOVE', dx: -dx, dy: -dy });
       }
 

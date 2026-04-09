@@ -3,49 +3,49 @@ import type { Item } from '../types/game.types';
 export const ITEMS: Record<string, Item> = {
   // === 무기 ===
   stick: {
-    id: 'stick', name: '나무 막대기', emoji: '🪵', type: 'weapon',
+    id: 'stick', name: '나무 막대기', emoji: '🪵', type: 'weapon', element: 'earth',
     attack: 2, description: '평범한 나무 막대기. 약한 공격력', rarity: 'common',
   },
   stone_blade: {
-    id: 'stone_blade', name: '돌 칼날', emoji: '🪨', type: 'weapon',
+    id: 'stone_blade', name: '돌 칼날', emoji: '🪨', type: 'weapon', element: 'earth',
     attack: 5, description: '날카롭게 갈아낸 돌칼', rarity: 'common',
   },
   sword: {
-    id: 'sword', name: '철 검', emoji: '⚔️', type: 'weapon',
+    id: 'sword', name: '철 검', emoji: '⚔️', type: 'weapon', element: 'wind',
     attack: 10, description: '단단한 철로 만든 검', rarity: 'uncommon',
   },
   poison_sword: {
-    id: 'poison_sword', name: '독검', emoji: '🗡️', type: 'weapon',
+    id: 'poison_sword', name: '독검', emoji: '🗡️', type: 'weapon', element: 'earth',
     attack: 12, description: '독이 발린 위험한 검', rarity: 'rare',
   },
   flame_sword: {
-    id: 'flame_sword', name: '화염검', emoji: '🔥', type: 'weapon',
+    id: 'flame_sword', name: '화염검', emoji: '🔥', type: 'weapon', element: 'fire',
     attack: 18, description: '불꽃이 타오르는 강력한 검', rarity: 'epic',
   },
   ice_sword: {
-    id: 'ice_sword', name: '빙검', emoji: '❄️', type: 'weapon',
+    id: 'ice_sword', name: '빙검', emoji: '❄️', type: 'weapon', element: 'water',
     attack: 16, description: '얼음처럼 차가운 마법 검', rarity: 'epic',
   },
   thunder_sword: {
-    id: 'thunder_sword', name: '번개검', emoji: '⚡', type: 'weapon',
+    id: 'thunder_sword', name: '번개검', emoji: '⚡', type: 'weapon', element: 'wind',
     attack: 22, description: '번개의 힘이 담긴 검', rarity: 'legendary',
   },
   dragon_slayer: {
-    id: 'dragon_slayer', name: '용살검', emoji: '🐉', type: 'weapon',
+    id: 'dragon_slayer', name: '용살검', emoji: '🐉', type: 'weapon', element: 'fire',
     attack: 30, description: '용을 처치하기 위해 만들어진 궁극의 검', rarity: 'legendary',
   },
 
   // === 방어구 ===
   leather_armor: {
-    id: 'leather_armor', name: '가죽 갑옷', emoji: '🥋', type: 'armor',
+    id: 'leather_armor', name: '가죽 갑옷', emoji: '🥋', type: 'armor', element: 'earth',
     defense: 4, description: '가벼운 가죽 갑옷', rarity: 'common',
   },
   iron_armor: {
-    id: 'iron_armor', name: '철 갑옷', emoji: '🛡️', type: 'armor',
+    id: 'iron_armor', name: '철 갑옷', emoji: '🛡️', type: 'armor', element: 'wind',
     defense: 9, description: '무거운 철 갑옷', rarity: 'uncommon',
   },
   dragon_armor: {
-    id: 'dragon_armor', name: '용의 갑옷', emoji: '🦾', type: 'armor',
+    id: 'dragon_armor', name: '용의 갑옷', emoji: '🦾', type: 'armor', element: 'fire',
     defense: 18, description: '용의 비늘로 만든 최강의 갑옷', rarity: 'legendary',
   },
 

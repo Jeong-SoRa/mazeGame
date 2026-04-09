@@ -2,7 +2,7 @@ import type { MonsterTemplate, MonsterInstance } from '../types/game.types';
 
 export const MONSTER_TEMPLATES: MonsterTemplate[] = [
   {
-    id: 'slime', name: '슬라임', emoji: '🫧', color: '#4ade80',
+    id: 'slime', name: '슬라임', emoji: '🫧', color: '#4ade80', element: 'water',
     baseHp: 20, baseAttack: 4, baseDefense: 0, minStage: 1,
     dropTable: [
       { itemId: 'small_potion', chance: 0.5 },
@@ -10,7 +10,7 @@ export const MONSTER_TEMPLATES: MonsterTemplate[] = [
     ],
   },
   {
-    id: 'rat', name: '거대 쥐', emoji: '🐀', color: '#a78bfa',
+    id: 'rat', name: '거대 쥐', emoji: '🐀', color: '#a78bfa', element: 'earth',
     baseHp: 15, baseAttack: 3, baseDefense: 0, minStage: 1,
     dropTable: [
       { itemId: 'herb', chance: 0.6 },
@@ -18,7 +18,7 @@ export const MONSTER_TEMPLATES: MonsterTemplate[] = [
     ],
   },
   {
-    id: 'goblin', name: '고블린', emoji: '👺', color: '#86efac',
+    id: 'goblin', name: '고블린', emoji: '👺', color: '#86efac', element: 'earth',
     baseHp: 35, baseAttack: 7, baseDefense: 2, minStage: 2,
     dropTable: [
       { itemId: 'iron_ore', chance: 0.5 },
@@ -27,7 +27,7 @@ export const MONSTER_TEMPLATES: MonsterTemplate[] = [
     ],
   },
   {
-    id: 'skeleton', name: '해골', emoji: '💀', color: '#e5e7eb',
+    id: 'skeleton', name: '해골', emoji: '💀', color: '#e5e7eb', element: 'wind',
     baseHp: 45, baseAttack: 10, baseDefense: 3, minStage: 4,
     dropTable: [
       { itemId: 'iron_ore', chance: 0.4 },
@@ -36,7 +36,7 @@ export const MONSTER_TEMPLATES: MonsterTemplate[] = [
     ],
   },
   {
-    id: 'zombie', name: '좀비', emoji: '🧟', color: '#84cc16',
+    id: 'zombie', name: '좀비', emoji: '🧟', color: '#84cc16', element: 'earth',
     baseHp: 60, baseAttack: 12, baseDefense: 4, minStage: 6,
     dropTable: [
       { itemId: 'poison_fang', chance: 0.4 },
@@ -45,7 +45,7 @@ export const MONSTER_TEMPLATES: MonsterTemplate[] = [
     ],
   },
   {
-    id: 'werewolf', name: '늑대인간', emoji: '🐺', color: '#a3a3a3',
+    id: 'werewolf', name: '늑대인간', emoji: '🐺', color: '#a3a3a3', element: 'wind',
     baseHp: 80, baseAttack: 16, baseDefense: 6, minStage: 8,
     dropTable: [
       { itemId: 'wolf_pelt', chance: 0.6 },
@@ -54,7 +54,7 @@ export const MONSTER_TEMPLATES: MonsterTemplate[] = [
     ],
   },
   {
-    id: 'vampire', name: '뱀파이어', emoji: '🧛', color: '#c026d3',
+    id: 'vampire', name: '뱀파이어', emoji: '🧛', color: '#c026d3', element: 'water',
     baseHp: 100, baseAttack: 20, baseDefense: 8, minStage: 10,
     dropTable: [
       { itemId: 'magic_dust', chance: 0.5 },
@@ -63,7 +63,7 @@ export const MONSTER_TEMPLATES: MonsterTemplate[] = [
     ],
   },
   {
-    id: 'troll', name: '트롤', emoji: '👹', color: '#16a34a',
+    id: 'troll', name: '트롤', emoji: '👹', color: '#16a34a', element: 'earth',
     baseHp: 130, baseAttack: 24, baseDefense: 10, minStage: 12,
     dropTable: [
       { itemId: 'iron_ore', chance: 0.7 },
@@ -72,7 +72,7 @@ export const MONSTER_TEMPLATES: MonsterTemplate[] = [
     ],
   },
   {
-    id: 'dark_knight', name: '암흑 기사', emoji: '🦹', color: '#7c3aed',
+    id: 'dark_knight', name: '암흑 기사', emoji: '🦹', color: '#7c3aed', element: 'fire',
     baseHp: 160, baseAttack: 28, baseDefense: 14, minStage: 14,
     dropTable: [
       { itemId: 'iron_armor', chance: 0.3 },
@@ -81,7 +81,7 @@ export const MONSTER_TEMPLATES: MonsterTemplate[] = [
     ],
   },
   {
-    id: 'dragon', name: '드래곤', emoji: '🐲', color: '#dc2626',
+    id: 'dragon', name: '드래곤', emoji: '🐲', color: '#dc2626', element: 'fire',
     baseHp: 250, baseAttack: 38, baseDefense: 20, minStage: 17,
     dropTable: [
       { itemId: 'dragon_scale', chance: 0.8 },
@@ -113,5 +113,6 @@ export function createMonsterInstance(stage: number): MonsterInstance {
     attack: Math.round(template.baseAttack * scale),
     defense: Math.round(template.baseDefense * scale),
     dropTable: template.dropTable,
+    element: template.element,
   };
 }

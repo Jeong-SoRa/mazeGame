@@ -1,6 +1,7 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useGame } from '../store/gameStore';
 import { getPlayerAttack, getPlayerDefense } from '../game/CombatSystem';
+import { getElementEmoji, getElementName } from '../game/ElementSystem';
 import type { Item } from '../types/game.types';
 
 // ── 상수 ────────────────────────────────────────────────────────────────────
@@ -12,10 +13,24 @@ const MOVE_LERP = 0.14;
 // 이동 방향 → grid dx/dy (북=0, 동=PI/2, 남=PI, 서=-PI/2)
 function angleToDelta(angle: number): { dx: number; dy: number } {
   const a = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-  if (a < Math.PI / 4 || a >= 7 * Math.PI / 4) return { dx: 0,  dy: -1 }; // 북
-  if (a < 3 * Math.PI / 4)                       return { dx: 1,  dy:  0 }; // 동
-  if (a < 5 * Math.PI / 4)                       return { dx: 0,  dy:  1 }; // 남
-  return                                                  { dx: -1, dy:  0 }; // 서
+  console.log(`angleToDelta: input=${angle}, normalized=${a}`);
+
+  // 화면 좌표계 완전 일치: cos(angle) = dx, sin(angle) = dy
+  // 0 = 동쪽(오른쪽), π/2 = 남쪽(아래쪽), π = 서쪽(왼쪽), 3π/2 = 북쪽(위쪽)
+  if (a < Math.PI / 4 || a >= 7 * Math.PI / 4) {
+    console.log('Direction: East (right) - screen match');
+    return { dx: 1,  dy: 0 }; // 동쪽 (오른쪽)
+  }
+  if (a < 3 * Math.PI / 4) {
+    console.log('Direction: South (down) - screen match');
+    return { dx: 0,  dy: 1 }; // 남쪽 (아래쪽) ← 수정!
+  }
+  if (a < 5 * Math.PI / 4) {
+    console.log('Direction: West (left) - screen match');
+    return { dx: -1, dy: 0 }; // 서쪽 (왼쪽)
+  }
+  console.log('Direction: North (up) - screen match');
+  return { dx: 0,  dy: -1 }; // 북쪽 (위쪽) ← 수정!
 }
 
 function formatTime(sec: number) {
@@ -31,6 +46,10 @@ export default function FPSCanvas() {
     player, steps, elapsedSeconds, stage,
     activeModal,
   } = state;
+
+  // 버튼 상태 관리
+  const [pressedButtons, setPressedButtons] = useState<Set<string>>(new Set());
+  const buttonIntervalRef = useRef<Record<string, number>>({});
 
   // ── refs (렌더링 루프용) ────────────────────────────────────────────────
   const canvasRef  = useRef<HTMLCanvasElement>(null);
@@ -154,6 +173,10 @@ export default function FPSCanvas() {
       const dist2 = Math.sqrt(mdx * mdx + mdy * mdy);
       if (dist2 > mzSize * 0.6) continue;
       const mAngle = Math.atan2(mdy, mdx);
+
+      // 벽 충돌 체크: 플레이어와 몬스터 사이에 벽이 있으면 렌더링하지 않음
+      const lineOfSight = castRay(px, py, mAngle, mz, mzSize);
+      if (lineOfSight.dist < dist2 - 0.1) continue; // 0.1 여유분으로 벽에 가려진 몬스터 제외
       let relM = mAngle - angle;
       while (relM >  Math.PI) relM -= 2 * Math.PI;
       while (relM < -Math.PI) relM += 2 * Math.PI;
@@ -267,7 +290,9 @@ export default function FPSCanvas() {
       s.exitPos.x + 0.5, s.exitPos.y + 0.5, s);
 
     const mmS = mm.width;
-    drawMinimap(mmCtx, mmS, px, py, angle, mz, mzSize, s);
+    // 미니맵도 회전 버튼과 동일한 각도 사용
+    const targetAngle = targetAngleRef.current;
+    drawMinimap(mmCtx, mmS, px, py, targetAngle, mz, mzSize, s);
 
     animRef.current = requestAnimationFrame(loop);
   }, [drawScene, drawMinimap]);
@@ -334,16 +359,72 @@ export default function FPSCanvas() {
 
       // 이동 (키 반복 허용)
       if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
-        console.log('Up/W key pressed, angle:', targetAngleRef.current);
-        const { dx, dy } = angleToDelta(targetAngleRef.current);
-        console.log('Move direction:', { dx, dy });
-        dispatch({ type: 'MOVE', dx, dy });
+        console.log('=== Keyboard Forward (Rotation Sync) ===');
+
+        // 회전 버튼과 동일한 각도 사용
+        const currentAngle = targetAngleRef.current;
+        const { dx, dy } = angleToDelta(currentAngle);
+        console.log(`Target angle: ${currentAngle}`);
+        console.log(`angleToDelta result: {dx: ${dx}, dy: ${dy}}`);
+        console.log(`Grid move: dx=${dx}, dy=${dy}`);
+
+        // 레이캐스팅으로 이동 가능 여부 체크
+        const currentPos = stateRef.current.playerPos;
+        const px = currentPos.x + 0.5;
+        const py = currentPos.y + 0.5;
+        const maze = stateRef.current.maze as number[][];
+        const mazeSize = stateRef.current.mazeSize;
+
+        // 회전 버튼과 동일한 방향으로 레이캐스팅
+        const rayAngle = currentAngle;
+        console.log(`Forward ray angle: ${rayAngle}`);
+
+        const rayResult = castRay(px, py, rayAngle, maze, mazeSize);
+        console.log(`Raycast check: dist=${rayResult.dist}, can move=${rayResult.dist >= 1.0}`);
+
+        // 레이캐스팅 거리가 1.0 이상이어야 이동 가능
+        if (rayResult.dist < 1.0) {
+          console.log('Movement blocked by raycast check');
+          return;
+        }
+
+        console.log('Movement allowed by raycast, dispatching MOVE with bypass');
+        dispatch({ type: 'MOVE', dx, dy, bypassWallCheck: true });
       }
       if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
-        console.log('Down/S key pressed, angle:', targetAngleRef.current);
-        const { dx, dy } = angleToDelta(targetAngleRef.current);
-        console.log('Move direction:', { dx: -dx, dy: -dy });
-        dispatch({ type: 'MOVE', dx: -dx, dy: -dy });
+        console.log('=== Keyboard Backward (Rotation Sync) ===');
+
+        // 회전 버튼과 동일한 각도 사용
+        const currentAngle = targetAngleRef.current;
+        const { dx, dy } = angleToDelta(currentAngle);
+        const finalDx = -dx;
+        const finalDy = -dy;
+        console.log(`Target angle: ${currentAngle}`);
+        console.log(`angleToDelta result: {dx: ${dx}, dy: ${dy}}`);
+        console.log(`Final move: dx=${finalDx}, dy=${finalDy}`);
+
+        // 레이캐스팅으로 이동 가능 여부 체크
+        const currentPos = stateRef.current.playerPos;
+        const px = currentPos.x + 0.5;
+        const py = currentPos.y + 0.5;
+        const maze = stateRef.current.maze as number[][];
+        const mazeSize = stateRef.current.mazeSize;
+
+        // 회전 버튼과 동일한 반대 방향으로 레이캐스팅
+        const rayAngle = currentAngle + Math.PI;
+        console.log(`Backward ray angle: ${rayAngle}`);
+
+        const rayResult = castRay(px, py, rayAngle, maze, mazeSize);
+        console.log(`Raycast check: dist=${rayResult.dist}, can move=${rayResult.dist >= 1.0}`);
+
+        // 레이캐스팅 거리가 1.0 이상이어야 이동 가능
+        if (rayResult.dist < 1.0) {
+          console.log('Movement blocked by raycast check');
+          return;
+        }
+
+        console.log('Movement allowed by raycast, dispatching MOVE with bypass');
+        dispatch({ type: 'MOVE', dx: finalDx, dy: finalDy, bypassWallCheck: true });
       }
 
       // 회전 (키 반복 허용)
@@ -417,14 +498,101 @@ export default function FPSCanvas() {
   }
 
   // ── 터치 핸들러 ───────────────────────────────────────────────────────────
-  function touchMove(forward: boolean) {
+  function handleTouchMove(direction: 'forward' | 'backward') {
     if (activeModalRef.current !== null) return;
-    const { dx, dy } = angleToDelta(targetAngleRef.current);
-    dispatch({ type: 'MOVE', dx: forward ? dx : -dx, dy: forward ? dy : -dy });
+
+    // 회전 버튼과 동일한 각도 사용
+    const currentAngle = targetAngleRef.current;
+    const { dx, dy } = angleToDelta(currentAngle);
+    const finalDx = direction === 'forward' ? dx : -dx;
+    const finalDy = direction === 'forward' ? dy : -dy;
+
+    console.log(`=== Touch Move (Rotation Button Sync) ===`);
+    console.log(`Direction: ${direction}, target angle: ${currentAngle}`);
+    console.log(`angleToDelta result: {dx: ${dx}, dy: ${dy}}`);
+    console.log(`Final move: dx=${finalDx}, dy=${finalDy}`);
+
+    // 레이캐스팅으로 이동 가능 여부 체크
+    const currentPos = stateRef.current.playerPos;
+    const px = currentPos.x + 0.5;
+    const py = currentPos.y + 0.5;
+    const maze = stateRef.current.maze as number[][];
+    const mazeSize = stateRef.current.mazeSize;
+
+    // 회전 버튼과 동일한 방향으로 레이캐스팅
+    const rayAngle = direction === 'forward' ? currentAngle : currentAngle + Math.PI;
+
+    console.log(`Raycast angle: ${rayAngle}`);
+    const rayResult = castRay(px, py, rayAngle, maze, mazeSize);
+    console.log(`Raycast check: dist=${rayResult.dist}, can move=${rayResult.dist >= 1.0}`);
+
+    // 레이캐스팅 거리가 1.0 이상이어야 이동 가능
+    if (rayResult.dist < 1.0) {
+      console.log('Movement blocked by raycast check');
+      return;
+    }
+
+    console.log('Movement allowed by raycast, dispatching MOVE with bypass');
+    dispatch({ type: 'MOVE', dx: finalDx, dy: finalDy, bypassWallCheck: true });
   }
-  function touchRotate(left: boolean) {
-    targetAngleRef.current += left ? -Math.PI / 2 : Math.PI / 2;
+
+  function handleTouchRotate(direction: 'left' | 'right') {
+    if (activeModalRef.current !== null) {
+      console.log('Modal is open, ignoring touch rotate');
+      return;
+    }
+
+    console.log(`=== Touch rotate: ${direction} ===`);
+    targetAngleRef.current += direction === 'left' ? -Math.PI / 2 : Math.PI / 2;
+    console.log(`New angle: ${targetAngleRef.current}`);
   }
+
+  // 버튼 누름 시작 - 임시로 인터벌 제거하고 단순 테스트
+  function handleButtonPress(buttonType: 'up' | 'down' | 'left' | 'right') {
+    console.log(`Button pressed: ${buttonType}`);
+
+    if (activeModalRef.current !== null) {
+      console.log('Modal open, ignoring');
+      return;
+    }
+
+    setPressedButtons(prev => new Set(prev).add(buttonType));
+
+    // 단순히 한 번만 실행 (인터벌 제거)
+    if (buttonType === 'up') {
+      handleTouchMove('forward');
+    } else if (buttonType === 'down') {
+      handleTouchMove('backward');
+    } else if (buttonType === 'left') {
+      handleTouchRotate('left');
+    } else if (buttonType === 'right') {
+      handleTouchRotate('right');
+    }
+  }
+
+  // 버튼 누름 종료
+  function handleButtonRelease(buttonType: 'up' | 'down' | 'left' | 'right') {
+    setPressedButtons(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(buttonType);
+      return newSet;
+    });
+
+    // 인터벌 정리 (현재는 사용하지 않음)
+    if (buttonIntervalRef.current[buttonType]) {
+      clearInterval(buttonIntervalRef.current[buttonType]);
+      delete buttonIntervalRef.current[buttonType];
+    }
+  }
+
+  // 컴포넌트 언마운트 시 인터벌 정리
+  useEffect(() => {
+    return () => {
+      Object.values(buttonIntervalRef.current).forEach(intervalId => {
+        clearInterval(intervalId);
+      });
+    };
+  }, []);
 
   const atk = getPlayerAttack(player);
   const def = getPlayerDefense(player);
@@ -518,18 +686,7 @@ export default function FPSCanvas() {
               </div>
               <span style={{ color:'#3b82f6', fontSize:10, minWidth:45 }}>{player.mp}/{player.maxMp}</span>
             </div>
-            {/* 인벤토리 버튼 */}
-            <button
-              onClick={() => {
-                const panel = document.getElementById('fps-inv-panel');
-                if (panel) panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
-              }}
-              style={{
-                marginLeft:'auto', background:'#1e293b', border:'1px solid #6366f1',
-                color:'#a5b4fc', padding:'2px 8px', borderRadius:4, fontSize:10, cursor:'pointer',
-              }}>
-              🎒
-            </button>
+            
           </div>
 
           {/* 정보 줄 - 모바일에서는 간소화 */}
@@ -537,6 +694,7 @@ export default function FPSCanvas() {
             <span>👣 <b style={{ color:'#e5e7eb' }}>{steps}</b></span>
             <span>⏱ <b style={{ color:'#e5e7eb' }}>{formatTime(elapsedSeconds)}</b></span>
             <span>🗺 Stage <b style={{ color:'#a78bfa' }}>{stage}</b></span>
+            <span>{getElementEmoji(player.element)} <b style={{ color:'#a78bfa' }}>{getElementName(player.element)}</b></span>
             <span>⚔️ <b style={{ color:'#fca5a5' }}>{atk}</b></span>
             <span>🛡️ <b style={{ color:'#93c5fd' }}>{def}</b></span>
           </div>
@@ -549,7 +707,41 @@ export default function FPSCanvas() {
             padding: '8px 0',
             gap: 12,
           }}>
-            {/* 왼쪽: 액션 버튼들 */}
+            {/* 맨 왼쪽: 플레이어 프로필 */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              background: 'rgba(30,41,59,0.8)',
+              border: '1px solid #374151',
+              borderRadius: 8,
+              padding: '4px',
+              minWidth: 50,
+            }}>
+              <div style={{
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                background: `linear-gradient(135deg, ${
+                  player.element === 'fire' ? '#f87171, #dc2626' :
+                  player.element === 'water' ? '#60a5fa, #2563eb' :
+                  player.element === 'earth' ? '#65a30d, #16a34a' :
+                  '#a78bfa, #7c3aed'
+                })`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 18,
+                border: '2px solid rgba(255,255,255,0.2)',
+              }}>
+                {/* 캐릭터별 이모지 표시 */}
+                {player.element === 'earth' ? '🧀🐱' :
+                 player.element === 'water' ? '🤵🐱' :
+                 player.element === 'fire' ? '🍞🐱' :
+                 '🐱'}
+              </div>
+            </div>
+
+            {/* 중간: 액션 버튼들 */}
             <div style={{ display: 'flex', gap: 8 }}>
               <button
                 onClick={() => {
@@ -560,24 +752,64 @@ export default function FPSCanvas() {
                   background:'rgba(30,41,59,0.95)', border:'1px solid #4f46e5',
                   color:'#a5b4fc', fontSize:12, borderRadius:6, padding:'6px 10px',
                   cursor:'pointer', userSelect:'none', touchAction:'manipulation',
-                }}>🎒</button>
+                }}>가방</button>
               <button
                 onClick={() => dispatch({ type:'SET_MODAL', modal:'crafting' })}
                 style={{
                   background:'rgba(30,41,59,0.95)', border:'1px solid #7c3aed',
                   color:'#c4b5fd', fontSize:12, borderRadius:6, padding:'6px 10px',
                   cursor:'pointer', userSelect:'none', touchAction:'manipulation',
-                }}>✨</button>
+                }}>만들기</button>
             </div>
 
             {/* 오른쪽: 이동 컨트롤 */}
             <div style={{ display:'grid', gridTemplateColumns:'repeat(3,45px)', gridTemplateRows:'repeat(2,45px)', gap:3 }}>
               <div />
-              <button onPointerDown={() => touchMove(true)} style={padBtnStyle}>↑</button>
+              <button
+                onPointerDown={() => handleButtonPress('up')}
+                onPointerUp={() => handleButtonRelease('up')}
+                onPointerLeave={() => handleButtonRelease('up')}
+                style={{
+                  ...padBtnStyle,
+                  ...(pressedButtons.has('up') ? padBtnActiveStyle : {}),
+                }}
+              >
+                ↑
+              </button>
               <div />
-              <button onPointerDown={() => touchRotate(true)} style={padBtnStyle}>←</button>
-              <button onPointerDown={() => touchMove(false)} style={padBtnStyle}>↓</button>
-              <button onPointerDown={() => touchRotate(false)} style={padBtnStyle}>→</button>
+              <button
+                onPointerDown={() => handleButtonPress('left')}
+                onPointerUp={() => handleButtonRelease('left')}
+                onPointerLeave={() => handleButtonRelease('left')}
+                style={{
+                  ...padBtnStyle,
+                  ...(pressedButtons.has('left') ? padBtnActiveStyle : {}),
+                }}
+              >
+                ←
+              </button>
+              <button
+                onPointerDown={() => handleButtonPress('down')}
+                onPointerUp={() => handleButtonRelease('down')}
+                onPointerLeave={() => handleButtonRelease('down')}
+                style={{
+                  ...padBtnStyle,
+                  ...(pressedButtons.has('down') ? padBtnActiveStyle : {}),
+                }}
+              >
+                ↓
+              </button>
+              <button
+                onPointerDown={() => handleButtonPress('right')}
+                onPointerUp={() => handleButtonRelease('right')}
+                onPointerLeave={() => handleButtonRelease('right')}
+                style={{
+                  ...padBtnStyle,
+                  ...(pressedButtons.has('right') ? padBtnActiveStyle : {}),
+                }}
+              >
+                →
+              </button>
             </div>
           </div>
         </div>
@@ -623,8 +855,20 @@ export default function FPSCanvas() {
 }
 
 const padBtnStyle: React.CSSProperties = {
-  background:'rgba(30,58,92,0.9)', border:'1px solid #334155',
+  background:'rgba(30,58,92,0.9)',
+  borderWidth: '1px',
+  borderStyle: 'solid',
+  borderColor: '#334155',
   color:'#7dd3fc', fontSize:16, borderRadius:4, cursor:'pointer',
   display:'flex', alignItems:'center', justifyContent:'center',
   userSelect:'none', touchAction:'manipulation',
+  transition: 'all 0.1s ease',
+};
+
+const padBtnActiveStyle: React.CSSProperties = {
+  background:'rgba(59,130,246,0.8)',
+  borderColor:'#3b82f6',
+  color:'#ffffff',
+  transform:'scale(0.95)',
+  boxShadow:'inset 0 2px 4px rgba(0,0,0,0.3)',
 };

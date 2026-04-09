@@ -7,6 +7,7 @@ export type CellType = 0 | 1; // 0=벽, 1=길
 
 export type ItemType = 'weapon' | 'armor' | 'potion' | 'material' | 'special';
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+export type Element = 'wind' | 'fire' | 'water' | 'earth';
 
 export interface Item {
   id: string;
@@ -18,6 +19,7 @@ export interface Item {
   heal?: number;
   description: string;
   rarity: Rarity;
+  element?: Element; // 속성 (무기, 방어구에만 적용)
 }
 
 export interface MonsterTemplate {
@@ -30,6 +32,7 @@ export interface MonsterTemplate {
   dropTable: { itemId: string; chance: number }[];
   minStage: number;
   color: string;
+  element: Element; // 몬스터 속성
 }
 
 export interface MonsterInstance {
@@ -42,6 +45,7 @@ export interface MonsterInstance {
   defense: number;
   color: string;
   dropTable: { itemId: string; chance: number }[];
+  element: Element; // 몬스터 속성
 }
 
 export interface ChestInstance {
@@ -54,6 +58,7 @@ export interface Character {
   name: string;
   emoji: string;
   description: string;
+  element: Element; // 캐릭터 속성
   stats: {
     hp: number;
     mp: number;
@@ -72,6 +77,7 @@ export interface PlayerState {
   inventory: Item[];
   equippedWeaponId: string | null;
   equippedArmorId: string | null;
+  element: Element; // 플레이어 속성
 }
 
 export interface CombatLog {
@@ -131,7 +137,7 @@ export interface RankingEntry {
 export type GameAction =
   | { type: 'INIT_STAGE'; stage: number; character?: Character }
   | { type: 'SET_MAX_CLEARED_STAGE'; stage: number }
-  | { type: 'MOVE'; dx: number; dy: number }
+  | { type: 'MOVE'; dx: number; dy: number; bypassWallCheck?: boolean }
   | { type: 'COMBAT_ATTACK' }
   | { type: 'COMBAT_USE_ITEM'; itemIndex: number }
   | { type: 'COMBAT_FLEE' }

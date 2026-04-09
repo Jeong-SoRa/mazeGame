@@ -3,6 +3,7 @@ import { useGame } from '../store/gameStore';
 import type { User } from 'firebase/auth';
 import type { Character } from '../types/game.types';
 import { logout } from '../firebase/auth';
+import { getElementEmoji, getElementName } from '../game/ElementSystem';
 
 interface Props {
   user: User;
@@ -10,25 +11,28 @@ interface Props {
 
 const characters: Character[] = [
   {
-    id: 'warrior',
-    name: '전사',
-    emoji: '⚔️',
-    description: '강력한 공격력과 높은 체력을 가진 근접 전투의 달인',
-    stats: { hp: 120, mp: 40, attack: 8, defense: 4 }
+    id: 'cheese_cat',
+    name: '치즈 고양이',
+    emoji: '🧀🐱',
+    element: 'earth',
+    description: '맛있는 치즈의 힘으로 든든한 방어력과 회복력을 가진 고양이',
+    stats: { hp: 110, mp: 50, attack: 7, defense: 5 }
   },
   {
-    id: 'mage',
-    name: '마법사',
-    emoji: '🔮',
-    description: '마법으로 적을 공격하고 강력한 스킬을 사용하는 지적 전투원',
-    stats: { hp: 80, mp: 100, attack: 6, defense: 2 }
+    id: 'tuxedo_cat',
+    name: '턱시도 고양이',
+    emoji: '🤵🐱',
+    element: 'water',
+    description: '우아하고 지적인 턱시도 고양이, 마법과 균형잡힌 능력의 소유자',
+    stats: { hp: 90, mp: 80, attack: 6, defense: 3 }
   },
   {
-    id: 'rogue',
-    name: '도적',
-    emoji: '🗡️',
-    description: '빠른 속도와 균형잡힌 능력치를 가진 민첩한 전투원',
-    stats: { hp: 100, mp: 60, attack: 7, defense: 3 }
+    id: 'bread_cat',
+    name: '식빵 고양이',
+    emoji: '🍞🐱',
+    element: 'fire',
+    description: '따뜻한 식빵처럼 빠르고 활기찬 고양이, 높은 공격력과 스피드가 특징',
+    stats: { hp: 85, mp: 65, attack: 9, defense: 2 }
   }
 ];
 
@@ -82,7 +86,7 @@ export default function CharacterSelect({ user }: Props) {
       {/* 캐릭터 선택 메인 영역 */}
       <div style={{ flex: 1, overflow: 'auto', padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <h2 style={{ color: '#e8e8e8', textAlign: 'center', marginBottom: 32, fontSize: 24 }}>
-          🎮 캐릭터를 선택하세요
+          미로탈출을 함께 할 친구를 선택하세요
         </h2>
 
         <div style={{
@@ -122,6 +126,9 @@ export default function CharacterSelect({ user }: Props) {
               <h3 style={{ color: '#fff', fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
                 {character.name}
               </h3>
+              <div style={{ color: '#a78bfa', fontSize: 14, marginBottom: 8 }}>
+                {getElementEmoji(character.element)} {getElementName(character.element)} 속성
+              </div>
               <p style={{ color: '#9ca3af', fontSize: 14, lineHeight: 1.4, marginBottom: 16 }}>
                 {character.description}
               </p>

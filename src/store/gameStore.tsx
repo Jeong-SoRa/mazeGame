@@ -17,6 +17,7 @@ function createInitialPlayer(character?: Character): PlayerState {
       inventory: [],
       equippedWeaponId: null,
       equippedArmorId: null,
+      element: character.element,
     };
   }
 
@@ -30,6 +31,7 @@ function createInitialPlayer(character?: Character): PlayerState {
     inventory: [],
     equippedWeaponId: null,
     equippedArmorId: null,
+    element: 'wind', // 기본 속성
   };
 }
 
@@ -103,14 +105,22 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'MOVE': {
       if (state.activeModal !== null) return state;
 
-      const { dx, dy } = action;
+      const { dx, dy, bypassWallCheck } = action;
       const nx = state.playerPos.x + dx;
       const ny = state.playerPos.y + dy;
 
       // 범위 체크
       if (ny < 0 || ny >= state.mazeSize || nx < 0 || nx >= state.mazeSize) return state;
-      // 벽 체크
-      if (state.maze[ny][nx] === 0) return state;
+
+      // 벽 체크 (레이캐스팅 체크를 통과한 경우 건너뛰기)
+      if (!bypassWallCheck && state.maze[ny][nx] === 0) {
+        console.log('MOVE blocked by wall check');
+        return state;
+      }
+
+      if (bypassWallCheck) {
+        console.log('MOVE bypassing wall check (raycast approved)');
+      }
 
       const key = `${nx},${ny}`;
 

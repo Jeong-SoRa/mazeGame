@@ -3,14 +3,34 @@ import type { MonsterInstance, ChestInstance } from '../types/game.types';
 import { createMonsterInstance } from './MonsterDatabase';
 import { ITEMS } from './ItemDatabase';
 
+// 시드 기반 랜덤 생성기 (LCG 알고리즘)
+class SeededRandom {
+  private seed: number;
+
+  constructor(seed: number) {
+    this.seed = seed;
+  }
+
+  // 0~1 사이의 랜덤 값 생성
+  next(): number {
+    this.seed = (this.seed * 1664525 + 1013904223) % 4294967296;
+    return this.seed / 4294967296;
+  }
+
+  // min ~ max 사이의 정수 생성
+  nextInt(min: number, max: number): number {
+    return Math.floor(this.next() * (max - min + 1)) + min;
+  }
+}
+
 // 스테이지별 미로 크기 (홀수여야 함)
 export function getMazeSize(stage: number): number {
   // Stage 1: 11, Stage 10: 29, Stage 20: 49
   return 2 * (5 + stage) + 1;
 }
 
-// 재귀 역추적으로 완전 미로 생성
-export function generateMaze(size: number): CellType[][] {
+// 재귀 역추적으로 완전 미로 생성 (시드 기반)
+export function generateMaze(size: number, rng: SeededRandom): CellType[][] {
   const maze: CellType[][] = Array.from({ length: size }, () =>
     Array(size).fill(0)
   );
@@ -18,7 +38,13 @@ export function generateMaze(size: number): CellType[][] {
   function carve(x: number, y: number) {
     const dirs = [
       [0, -2], [0, 2], [-2, 0], [2, 0],
-    ].sort(() => Math.random() - 0.5);
+    ];
+
+    // 시드 기반으로 방향 섞기
+    for (let i = dirs.length - 1; i > 0; i--) {
+      const j = rng.nextInt(0, i);
+      [dirs[i], dirs[j]] = [dirs[j], dirs[i]];
+    }
 
     for (const [dx, dy] of dirs) {
       const nx = x + dx;
@@ -51,8 +77,8 @@ function getOpenCells(maze: CellType[][], excludes: string[]): Position[] {
   return positions;
 }
 
-// 보물상자 내용물 생성 (스테이지 기반)
-function generateChestItems(stage: number): string[] {
+// 보물상자 내용물 생성 (스테이지 기반, 시드 기반)
+function generateChestItems(stage: number, rng: SeededRandom): string[] {
   const itemPool: string[][] = [
     // tier 1 (공통)
     ['small_potion', 'herb', 'stick', 'stone_blade'],
@@ -65,12 +91,12 @@ function generateChestItems(stage: number): string[] {
   ];
 
   const tier = Math.min(3, Math.floor((stage - 1) / 5));
-  const count = 1 + Math.floor(Math.random() * 2); // 1~2개
+  const count = 1 + rng.nextInt(0, 1); // 1~2개
   const pool = [...itemPool[0], ...(tier >= 1 ? itemPool[1] : []), ...(tier >= 2 ? itemPool[2] : []), ...(tier >= 3 ? itemPool[3] : [])];
 
   const items: string[] = [];
   for (let i = 0; i < count; i++) {
-    const itemId = pool[Math.floor(Math.random() * pool.length)];
+    const itemId = pool[rng.nextInt(0, pool.length - 1)];
     if (ITEMS[itemId]) items.push(itemId);
   }
   return items;
@@ -85,10 +111,14 @@ export interface GeneratedMap {
   chests: Record<string, ChestInstance>;
 }
 
-// 전체 맵 생성
+// 전체 맵 생성 (스테이지별 고정 시드 사용)
 export function generateMap(stage: number): GeneratedMap {
+  // 스테이지별 고정 시드 생성 (큰 소수 사용)
+  const seed = stage * 982451653 + 67867967;
+  const rng = new SeededRandom(seed);
+
   const mazeSize = getMazeSize(stage);
-  const maze = generateMaze(mazeSize);
+  const maze = generateMaze(mazeSize, rng);
 
   const playerPos: Position = { x: 1, y: 1 };
   const exitPos: Position = { x: mazeSize - 2, y: mazeSize - 2 };
@@ -104,7 +134,7 @@ export function generateMap(stage: number): GeneratedMap {
   const monsters: Record<string, MonsterInstance> = {};
 
   for (let i = 0; i < monsterCount && openCells.length > 0; i++) {
-    const idx = Math.floor(Math.random() * openCells.length);
+    const idx = rng.nextInt(0, openCells.length - 1);
     const pos = openCells.splice(idx, 1)[0];
     const key = `${pos.x},${pos.y}`;
     monsters[key] = createMonsterInstance(stage);
@@ -117,10 +147,10 @@ export function generateMap(stage: number): GeneratedMap {
   const chests: Record<string, ChestInstance> = {};
 
   for (let i = 0; i < chestCount && openCells.length > 0; i++) {
-    const idx = Math.floor(Math.random() * openCells.length);
+    const idx = rng.nextInt(0, openCells.length - 1);
     const pos = openCells.splice(idx, 1)[0];
     const key = `${pos.x},${pos.y}`;
-    chests[key] = { items: generateChestItems(stage), opened: false };
+    chests[key] = { items: generateChestItems(stage, rng), opened: false };
   }
 
   return { maze, mazeSize, playerPos, exitPos, monsters, chests };

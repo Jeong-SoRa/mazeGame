@@ -1,5 +1,6 @@
-import type { PlayerState, MonsterInstance, CombatLog, Item } from '../types/game.types';
+import type { PlayerState, MonsterInstance, CombatLog, Item, Element } from '../types/game.types';
 import { ITEMS } from './ItemDatabase';
+import { getElementMultiplier, getAdvantageText } from './ElementSystem';
 
 function rand(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -15,6 +16,23 @@ export function getPlayerDefense(player: PlayerState): number {
   return player.baseDefense + (armor?.defense ?? 0);
 }
 
+// 플레이어의 실제 공격 속성 (장비한 무기 속성 우선, 없으면 캐릭터 속성)
+export function getPlayerAttackElement(player: PlayerState): Element {
+  const weapon = player.equippedWeaponId ? ITEMS[player.equippedWeaponId] : null;
+  return weapon?.element ?? player.element;
+}
+
+// 속성 상성을 고려한 데미지 계산
+export function calculateDamageWithElement(
+  baseDamage: number,
+  attackerElement: Element,
+  defenderElement: Element
+): { damage: number; multiplier: number } {
+  const multiplier = getElementMultiplier(attackerElement, defenderElement);
+  const damage = Math.floor(baseDamage * multiplier);
+  return { damage, multiplier };
+}
+
 export interface AttackResult {
   playerHpAfter: number;
   monsterHpAfter: number;
@@ -27,10 +45,18 @@ export interface AttackResult {
 export function doPlayerAttack(player: PlayerState, monster: MonsterInstance): AttackResult {
   const logs: CombatLog[] = [];
 
-  // 플레이어 공격
+  // 플레이어 공격 (속성 상성 적용)
   const pAtk = getPlayerAttack(player);
   const mDef = monster.defense;
-  const dmgToMonster = Math.max(1, pAtk - mDef + rand(-2, 4));
+  const baseDmgToMonster = Math.max(1, pAtk - mDef + rand(-2, 4));
+
+  const playerElement = getPlayerAttackElement(player);
+  const { damage: dmgToMonster, multiplier } = calculateDamageWithElement(
+    baseDmgToMonster,
+    playerElement,
+    monster.element
+  );
+
   const monsterHpAfter = Math.max(0, monster.currentHp - dmgToMonster);
 
   logs.push({
@@ -38,21 +64,50 @@ export function doPlayerAttack(player: PlayerState, monster: MonsterInstance): A
     type: 'player',
   });
 
+  // 속성 상성 메시지 추가
+  const advantageText = getAdvantageText(playerElement, monster.element);
+  if (advantageText) {
+    logs.push({
+      text: advantageText,
+      type: 'system',
+    });
+  }
+
   if (monsterHpAfter <= 0) {
     logs.push({ text: `💥 ${monster.name}을(를) 처치했습니다!`, type: 'system' });
     return { playerHpAfter: player.hp, monsterHpAfter: 0, logs, playerDied: false, monsterDied: true };
   }
 
-  // 몬스터 반격
+  // 몬스터 반격 (속성 상성 적용)
   const mAtk = monster.attack;
   const pDef = getPlayerDefense(player);
-  const dmgToPlayer = Math.max(1, mAtk - pDef + rand(-2, 3));
+  const baseDmgToPlayer = Math.max(1, mAtk - pDef + rand(-2, 3));
+
+  // 플레이어의 방어 속성 (방어구 속성 우선, 없으면 캐릭터 속성)
+  const armor = player.equippedArmorId ? ITEMS[player.equippedArmorId] : null;
+  const playerDefenseElement = armor?.element ?? player.element;
+
+  const { damage: dmgToPlayer } = calculateDamageWithElement(
+    baseDmgToPlayer,
+    monster.element,
+    playerDefenseElement
+  );
+
   const playerHpAfter = Math.max(0, player.hp - dmgToPlayer);
 
   logs.push({
     text: `💢 ${monster.name}의 반격! ${dmgToPlayer} 데미지를 받았습니다.`,
     type: 'monster',
   });
+
+  // 몬스터 공격의 속성 상성 메시지
+  const monsterAdvantageText = getAdvantageText(monster.element, playerDefenseElement);
+  if (monsterAdvantageText) {
+    logs.push({
+      text: monsterAdvantageText,
+      type: 'system',
+    });
+  }
 
   const playerDied = playerHpAfter <= 0;
   if (playerDied) {

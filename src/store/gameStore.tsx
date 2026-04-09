@@ -9,6 +9,8 @@ function createInitialPlayer(): PlayerState {
   return {
     hp: 100,
     maxHp: 100,
+    mp: 60,
+    maxMp: 80,
     baseAttack: 6,
     baseDefense: 2,
     inventory: [],
@@ -40,6 +42,7 @@ const initialState: GameState = {
   selectedCraftItems: [],
   message: null,
   completionTime: null,
+  mapRevealTimer: 0,
 };
 
 // ─── 리듀서 ──────────────────────────────────────────────────────────────────
@@ -70,6 +73,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         player: createInitialPlayer(),
         startTime: Date.now(),
         elapsedSeconds: 0,
+        mapRevealTimer: 0,
       };
     }
 
@@ -78,6 +82,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return {
         ...state,
         elapsedSeconds: Math.floor((Date.now() - state.startTime) / 1000),
+        mapRevealTimer: Math.max(0, state.mapRevealTimer - 1),
       };
     }
 
@@ -366,6 +371,30 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'CLEAR_CRAFT_RESULT': {
       return { ...state, craftResult: null };
+    }
+
+    case 'USE_ITEM': {
+      const item = state.player.inventory[action.itemIndex];
+      if (!item) return state;
+      const newInventory = state.player.inventory.filter((_, i) => i !== action.itemIndex);
+
+      if (item.type === 'potion') {
+        const healed = Math.min(state.player.maxHp, state.player.hp + (item.heal ?? 0));
+        return {
+          ...state,
+          player: { ...state.player, hp: healed, inventory: newInventory },
+          message: `${item.emoji} ${item.name} 사용! HP +${item.heal}`,
+        };
+      }
+      if (item.id === 'eagle') {
+        return {
+          ...state,
+          player: { ...state.player, inventory: newInventory },
+          mapRevealTimer: 60,
+          message: '🦅 독수리! 1분간 미니맵 경로 공개!',
+        };
+      }
+      return state;
     }
 
     case 'EQUIP_ITEM': {

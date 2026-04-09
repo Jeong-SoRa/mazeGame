@@ -52,6 +52,8 @@ export interface ChestInstance {
 export interface PlayerState {
   hp: number;
   maxHp: number;
+  mp: number;
+  maxMp: number;
   baseAttack: number;
   baseDefense: number;
   inventory: Item[];
@@ -101,6 +103,7 @@ export interface GameState {
   selectedCraftItems: number[];
   message: string | null;
   completionTime: number | null;
+  mapRevealTimer: number;
 }
 
 export interface RankingEntry {
@@ -126,6 +129,7 @@ export type GameAction =
   | { type: 'CRAFT_ITEMS' }
   | { type: 'CLEAR_CRAFT_RESULT' }
   | { type: 'EQUIP_ITEM'; itemIndex: number }
+  | { type: 'USE_ITEM'; itemIndex: number }
   | { type: 'SET_MODAL'; modal: ActiveModal }
   | { type: 'TICK' }
   | { type: 'CLEAR_MESSAGE' }

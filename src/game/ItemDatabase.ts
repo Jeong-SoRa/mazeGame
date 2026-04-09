@@ -104,6 +104,12 @@ export const ITEMS: Record<string, Item> = {
     id: 'magic_dust', name: '마법 가루', emoji: '✨', type: 'material',
     description: '신비로운 마법 가루', rarity: 'rare',
   },
+
+  // === 특수 ===
+  eagle: {
+    id: 'eagle', name: '독수리', emoji: '🦅', type: 'special',
+    description: '1분간 미니맵 경로를 공개합니다', rarity: 'uncommon',
+  },
 };
 
 // 숨겨진 조합 레시피 (플레이어가 실험으로 발견)

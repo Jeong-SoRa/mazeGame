@@ -16,6 +16,9 @@ export default function HUD() {
   const maxHp = player.maxHp;
   const hpPct = (hp / maxHp) * 100;
   const hpColor = hpPct > 60 ? '#22c55e' : hpPct > 30 ? '#f59e0b' : '#ef4444';
+  const mp = player.mp;
+  const maxMp = player.maxMp;
+  const mpPct = (mp / maxMp) * 100;
 
   const atk = getPlayerAttack(player);
   const def = getPlayerDefense(player);
@@ -46,6 +49,21 @@ export default function HUD() {
         </div>
         <span style={{ color: hpColor, fontSize: 12, fontWeight: 700, minWidth: 55 }}>
           {hp}/{maxHp}
+        </span>
+      </div>
+
+      {/* MP 바 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 160 }}>
+        <span style={{ color: '#3b82f6', fontSize: 14 }}>💧</span>
+        <div style={{ flex: 1, background: '#374151', borderRadius: 4, height: 10, minWidth: 100 }}>
+          <div style={{
+            width: `${mpPct}%`, height: '100%',
+            background: '#3b82f6', borderRadius: 4,
+            transition: 'width 0.3s',
+          }} />
+        </div>
+        <span style={{ color: '#3b82f6', fontSize: 12, fontWeight: 700, minWidth: 55 }}>
+          {mp}/{maxMp}
         </span>
       </div>
 

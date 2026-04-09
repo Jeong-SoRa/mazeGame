@@ -14,6 +14,11 @@ export default function Inventory() {
     }
   }
 
+  function handleUseItem(e: React.MouseEvent, index: number) {
+    e.stopPropagation();
+    dispatch({ type: 'USE_ITEM', itemIndex: index });
+  }
+
   return (
     <div style={{
       width: 200,
@@ -77,6 +82,16 @@ export default function Inventory() {
                   </div>
                   {isEquipped && <span style={{ fontSize: 10, color: '#818cf8' }}>착용</span>}
                   {isSelected && <span style={{ fontSize: 10, color: '#a5b4fc' }}>✓</span>}
+                  {(item.type === 'potion' || item.type === 'special') && state.activeModal !== 'crafting' && (
+                    <button
+                      onClick={(e) => handleUseItem(e, i)}
+                      style={{
+                        padding: '2px 6px', background: '#14532d',
+                        border: '1px solid #4ade80', color: '#86efac',
+                        borderRadius: 4, fontSize: 10, cursor: 'pointer',
+                      }}
+                    >사용</button>
+                  )}
                 </div>
               );
             })}

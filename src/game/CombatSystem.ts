@@ -51,7 +51,7 @@ export function doPlayerAttack(player: PlayerState, monster: MonsterInstance): A
   const baseDmgToMonster = Math.max(1, pAtk - mDef + rand(-2, 4));
 
   const playerElement = getPlayerAttackElement(player);
-  const { damage: dmgToMonster, multiplier } = calculateDamageWithElement(
+  const { damage: dmgToMonster } = calculateDamageWithElement(
     baseDmgToMonster,
     playerElement,
     monster.element

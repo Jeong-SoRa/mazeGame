@@ -49,6 +49,19 @@ export interface ChestInstance {
   opened: boolean;
 }
 
+export interface Character {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string;
+  stats: {
+    hp: number;
+    mp: number;
+    attack: number;
+    defense: number;
+  };
+}
+
 export interface PlayerState {
   hp: number;
   maxHp: number;
@@ -78,7 +91,7 @@ export interface ChestOpenState {
   items: Item[];
 }
 
-export type GameScreen = 'stage-select' | 'playing' | 'stage-clear' | 'game-over';
+export type GameScreen = 'character-select' | 'playing' | 'stage-clear' | 'game-over';
 export type ActiveModal = 'combat' | 'chest' | 'crafting' | 'ranking' | null;
 
 export interface GameState {
@@ -116,7 +129,7 @@ export interface RankingEntry {
 }
 
 export type GameAction =
-  | { type: 'INIT_STAGE'; stage: number }
+  | { type: 'INIT_STAGE'; stage: number; character?: Character }
   | { type: 'SET_MAX_CLEARED_STAGE'; stage: number }
   | { type: 'MOVE'; dx: number; dy: number }
   | { type: 'COMBAT_ATTACK' }

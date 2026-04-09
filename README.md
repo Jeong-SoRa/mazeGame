@@ -1,73 +1,73 @@
-# React + TypeScript + Vite
+### 요구사항
+1. 웹 플랫폼에서 간단히 플레이할 수 있는 게임
+2. 구글 로그인을 통해 데이터 유지
+3. 출발해서 목적지까지 최단기간에 찾아가는 2차원 도트형 미로 게임
+4. 주인공 시점으로 1한칸까지의 시야만 확보되서 길을 외워야 빨리 깰 수 있음.
+5. 한 칸씩 갈때마다 몬스터를 잡거나 보물상자를 열수있다. 
+6. 몬스터를 잡거나 보물상자를 열면 아이템이 나온다. 
+7. 아이템을 조합해서 새로운 아이템을 생성할 수 있다. 
+8. 생성된 아이템으로 몬스터를 잡거나 또 새로운 아이템을 생성할 수 있다. 
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+#### 상세 요구사항
+1. 1부터 20 스테이지 까지 있고 스테이지가 올라갈수록 커지는 방식으로 할거고 스테이지별 랭킹 관리할거야
+2. 간단한 턴제로 아이템을 사용할수 있어야해
+3. 실험적으로 발견하는 방식으로
 
-Currently, two official plugins are available:
+### 구현된 기능 요약
+- 미로	
+- Stage 1 (11×11) ~ Stage 20 (49×49), 재귀 역추적 완전 미로
+- 시야	±1칸만 보임, 방문한 칸은 흐릿하게 표시, 미니맵 포함
+- 몬스터	10종 (슬라임→드래곤), 스테이지별 강화, 턴제 전투
+- 아이템	22종 (무기/방어구/포션/재료)
+- 조합	16개 숨겨진 레시피 (실험으로 발견)
+- 랭킹	스테이지별 상위 10명, 스텝 수 기준
+- 이동	WASD/화살표키 + 모바일 스와이프 + 화면 버튼
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-## React Compiler
+### 실행 전 필수 작업 
+#### Firebase 설정
+src/firebase/config.ts 에서 실제 Firebase 키 입력:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+    1. Firebase Console → 새 프로젝트 생성
+    2. Authentication → Google 로그인 활성화
+    3. Firestore Database → 생성 (테스트 모드로 시작)
+    4. 프로젝트 설정 → 웹 앱 추가 → SDK 설정 키 복사 → config.ts에 붙여넣기
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+#### claude 코드 관련 환경변수 설정
+    터미널에서 아래 명령어 실행
+```
+set ANTHROPIC_MAX_OUTPUT_TOKENS=8000
+set ANTHROPIC_MAX_THINKING_TOKENS=10000
+set ANTHROPIC_CLAUDE_CODE_SUBAGENT_MODE=haiku
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 실행하기
+#### 로컬
+cd D:/sorajapp/claudeTest/maze-game
+npm run dev   # 개발 서버 실행
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### firebase 에 배포하기
+    클로드 사용하여 수정된 소스를 git에 push하도록 함
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+### 환경구성
+#### firebase 호스팅 설정
+    1. firebase cli 설치
+    ```
+    npm install -g firebase-tools
+    ```
+    2. 프로젝트 초기화
+    ```
+    firebase login
+    firebase init
+    ```
+    3. firebase 호스팅에 배포하기
+    ```
+    정적 파일(예: HTML, CSS, JS)을 앱의 배포 디렉터리에 배치합니다. 
+    기본값은 '공개'입니다. 그런 다음 앱의 루트 디렉터리에서 이 명령어를 실행합니다.
+
+    npm run build && firebase deploy
+    ```
+    4. 배포후 확인
+        https://breaking-maze.web.app/
+        // 테스트용 지금은 사용안함
+        https://maze-breakout.web.app/

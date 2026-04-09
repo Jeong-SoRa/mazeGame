@@ -1,11 +1,25 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
-import type { GameState, GameAction, PlayerState, CombatState } from '../types/game.types';
+import type { GameState, GameAction, PlayerState, CombatState, Character } from '../types/game.types';
 import { generateMap } from '../game/MazeGenerator';
 import { ITEMS, craftItems } from '../game/ItemDatabase';
 import { doPlayerAttack, usePotion, tryFlee, calculateDrops } from '../game/CombatSystem';
 
 // ─── 초기 플레이어 ───────────────────────────────────────────────────────────
-function createInitialPlayer(): PlayerState {
+function createInitialPlayer(character?: Character): PlayerState {
+  if (character) {
+    return {
+      hp: character.stats.hp,
+      maxHp: character.stats.hp,
+      mp: character.stats.mp,
+      maxMp: character.stats.mp,
+      baseAttack: character.stats.attack,
+      baseDefense: character.stats.defense,
+      inventory: [],
+      equippedWeaponId: null,
+      equippedArmorId: null,
+    };
+  }
+
   return {
     hp: 100,
     maxHp: 100,
@@ -21,7 +35,7 @@ function createInitialPlayer(): PlayerState {
 
 // ─── 초기 상태 ───────────────────────────────────────────────────────────────
 const initialState: GameState = {
-  screen: 'stage-select',
+  screen: 'character-select',
   stage: 1,
   maxClearedStage: 0,
   maze: [],
@@ -50,7 +64,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
 
     case 'INIT_STAGE': {
-      const { stage } = action;
+      const { stage, character } = action;
       const map = generateMap(stage);
       const visited = [`${map.playerPos.x},${map.playerPos.y}`];
       // 주변 1칸도 초기 방문 처리 (시작 위치 시야)
@@ -70,7 +84,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         stage,
         ...map,
         visitedCells: visited,
-        player: createInitialPlayer(),
+        player: createInitialPlayer(character),
         startTime: Date.now(),
         elapsedSeconds: 0,
         mapRevealTimer: 0,
@@ -433,7 +447,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'RETURN_TO_SELECT': {
-      return { ...initialState, maxClearedStage: state.maxClearedStage };
+      return { ...initialState, screen: 'character-select', maxClearedStage: state.maxClearedStage };
     }
 
     default:

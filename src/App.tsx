@@ -1,7 +1,7 @@
 import { GameProvider, useGame } from './store/gameStore';
 import { useAuth } from './hooks/useAuth';
 import LoginScreen from './components/LoginScreen';
-import StageSelect from './components/StageSelect';
+import CharacterSelect from './components/CharacterSelect';
 import GameView from './components/GameView';
 import StageClear from './components/StageClear';
 import GameOver from './components/GameOver';
@@ -24,8 +24,8 @@ function GameRouter() {
   if (!user) return <LoginScreen />;
 
   switch (state.screen) {
-    case 'stage-select':
-      return <StageSelect user={user} />;
+    case 'character-select':
+      return <CharacterSelect user={user} />;
     case 'playing':
       return <GameView />;
     case 'stage-clear':
@@ -33,7 +33,7 @@ function GameRouter() {
     case 'game-over':
       return <GameOver />;
     default:
-      return <StageSelect user={user} />;
+      return <CharacterSelect user={user} />;
   }
 }
 

@@ -3,8 +3,36 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#0a0a0f" />
     <title>Breaking Maze</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        touch-action: manipulation;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      #root {
+        height: 100vh;
+        height: 100dvh;
+        overflow: hidden;
+      }
+      /* 모바일 브라우저 UI 변화 대응 */
+      @supports (height: 100dvh) {
+        #root {
+          height: 100dvh;
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

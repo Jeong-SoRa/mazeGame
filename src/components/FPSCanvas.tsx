@@ -371,6 +371,31 @@ export default function FPSCanvas() {
         return;
       }
 
+      // 인벤토리(가방) 토글 (한 번만 처리)
+      if (!isRepeat && (e.key === 'i' || e.key === 'I')) {
+        const panel = document.getElementById('fps-inv-panel');
+        if (panel) {
+          const isVisible = panel.style.display === 'flex';
+          panel.style.display = isVisible ? 'none' : 'flex';
+          addActionLog(isVisible ? '가방을 닫았다.' : '가방을 열었다.');
+        }
+        return;
+      }
+
+      // 만들기 모달 열기 (한 번만 처리)
+      if (!isRepeat && (e.key === 'c' || e.key === 'C')) {
+        dispatch({ type:'SET_MODAL', modal:'crafting' });
+        addActionLog('제작 도구를 열었다.');
+        return;
+      }
+
+      // 공격 (한 번만 처리) - 미래 구현용
+      if (!isRepeat && e.key === ' ') {
+        // TODO: 공격 기능 구현
+        addActionLog('공격을 시도했다.');
+        return;
+      }
+
       // 회전 (한 번만 처리)
       if (!isRepeat) {
         if (e.key === 'a' || e.key === 'A') {
@@ -1119,6 +1144,30 @@ export default function FPSCanvas() {
                         borderRadius:6, fontSize:12, fontFamily:'monospace',
                         border:'1px solid #8b5cf6'
                       }}>H</kbd>
+                    </div>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <span style={{ color:'#e2e8f0' }}>가방 열기/닫기</span>
+                      <kbd style={{
+                        background:'#374151', color:'#f3f4f6', padding:'4px 8px',
+                        borderRadius:6, fontSize:12, fontFamily:'monospace',
+                        border:'1px solid #4b5563'
+                      }}>I</kbd>
+                    </div>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <span style={{ color:'#e2e8f0' }}>제작 메뉴</span>
+                      <kbd style={{
+                        background:'#374151', color:'#f3f4f6', padding:'4px 8px',
+                        borderRadius:6, fontSize:12, fontFamily:'monospace',
+                        border:'1px solid #4b5563'
+                      }}>C</kbd>
+                    </div>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <span style={{ color:'#e2e8f0' }}>공격</span>
+                      <kbd style={{
+                        background:'#dc2626', color:'#ffffff', padding:'4px 8px',
+                        borderRadius:6, fontSize:12, fontFamily:'monospace',
+                        border:'1px solid #ef4444'
+                      }}>Space</kbd>
                     </div>
                   </div>
                 </div>

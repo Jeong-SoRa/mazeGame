@@ -13,10 +13,86 @@ function GameRouter() {
   if (loading) {
     return (
       <div style={{
-        height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: '#0a0a0f', color: '#a78bfa', fontSize: 18,
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#0a0a0f',
+        color: '#a78bfa',
+        fontSize: 18,
+        fontFamily: 'monospace'
       }}>
-        🗺️ 로딩 중...
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          marginBottom: '24px'
+        }}>
+          <div style={{
+            width: '10px',
+            height: '10px',
+            background: '#a78bfa',
+            borderRadius: '1px',
+            animation: 'bounce1 1.2s infinite ease-in-out'
+          }} />
+          <div style={{
+            width: '10px',
+            height: '10px',
+            background: '#a78bfa',
+            borderRadius: '1px',
+            animation: 'bounce2 1.2s infinite ease-in-out'
+          }} />
+          <div style={{
+            width: '10px',
+            height: '10px',
+            background: '#a78bfa',
+            borderRadius: '1px',
+            animation: 'bounce3 1.2s infinite ease-in-out'
+          }} />
+        </div>
+        <div style={{
+          textAlign: 'center',
+          letterSpacing: '3px',
+          textTransform: 'uppercase',
+          fontSize: '14px',
+          opacity: 0.7,
+          fontWeight: 'bold'
+        }}>
+          Loading
+        </div>
+        <style>{`
+          @keyframes bounce1 {
+            0%, 80%, 100% {
+              transform: scaleY(0.6);
+              opacity: 0.4;
+            }
+            40% {
+              transform: scaleY(1.2);
+              opacity: 1;
+            }
+          }
+          @keyframes bounce2 {
+            0%, 20%, 80%, 100% {
+              transform: scaleY(0.6);
+              opacity: 0.4;
+            }
+            50% {
+              transform: scaleY(1.2);
+              opacity: 1;
+            }
+          }
+          @keyframes bounce3 {
+            0%, 40%, 80%, 100% {
+              transform: scaleY(0.6);
+              opacity: 0.4;
+            }
+            60% {
+              transform: scaleY(1.2);
+              opacity: 1;
+            }
+          }
+        `}</style>
       </div>
     );
   }

@@ -44,13 +44,12 @@ export default function FPSCanvas() {
   const {
     maze, mazeSize, playerPos,
     player, steps, optimalSteps, elapsedSeconds, stage,
-    activeModal,
+    activeModal, combatState, chestState, actionLogs = [], exitPos
   } = state;
 
   // 버튼 상태 관리
   const [pressedButtons, setPressedButtons] = useState<Set<string>>(new Set());
   const [showHelp, setShowHelp] = useState<boolean>(false);
-  const [actionLogs, setActionLogs] = useState<string[]>([]);
   const buttonIntervalRef = useRef<Record<string, number>>({});
 
   // ── refs (렌더링 루프용) ────────────────────────────────────────────────
@@ -71,20 +70,9 @@ export default function FPSCanvas() {
   const stateRef      = useRef(state);
 
   // 액션 로그 추가 함수
-  const addActionLog = useCallback((message: string) => {
-    const timestamp = new Date().toLocaleTimeString('ko-KR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
-    const logEntry = `[${timestamp}] ${message}`;
-
-    setActionLogs(prev => {
-      const newLogs = [...prev, logEntry];
-      // 최대 50개 로그만 유지
-      return newLogs.slice(-50);
-    });
-  }, []);
+  const addActionLog = useCallback((message: string, type: 'move' | 'combat' | 'item' | 'system' = 'move') => {
+    dispatch({ type: 'ADD_ACTION_LOG', logType: type, message });
+  }, [dispatch]);
 
   // refs 동기화
   useEffect(() => { mazeRef.current = maze; }, [maze]);
@@ -358,12 +346,26 @@ export default function FPSCanvas() {
       if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
       keysRef.current[e.key] = true;
 
+      const isRepeat = lastKeyRef.current[e.key];
+
+      // 전투 중 키 처리 (전투 모달 열려 있을 때만 활성화)
+      if (activeModalRef.current === 'combat') {
+        if (!isRepeat && e.key === ' ') {
+          dispatch({ type: 'COMBAT_ATTACK' });
+          addActionLog('공격했다.', 'combat');
+        }
+        if (!isRepeat && (e.key === 'z' || e.key === 'Z')) {
+          dispatch({ type: 'COMBAT_FLEE' });
+          addActionLog('도망을 시도했다.', 'combat');
+        }
+        lastKeyRef.current[e.key] = true;
+        return;
+      }
+
       if (activeModalRef.current !== null) {
         console.log('Modal is open, ignoring key input:', activeModalRef.current);
         return;
       }
-
-      const isRepeat = lastKeyRef.current[e.key];
 
       // 도움말 토글 (한 번만 처리)
       if (!isRepeat && (e.key === 'h' || e.key === 'H')) {
@@ -371,28 +373,17 @@ export default function FPSCanvas() {
         return;
       }
 
-      // 인벤토리(가방) 토글 (한 번만 처리)
-      if (!isRepeat && (e.key === 'i' || e.key === 'I')) {
+      // 가방 열기/닫기 (한 번만 처리)
+      if (!isRepeat && (e.key === 'e' || e.key === 'E')) {
         const panel = document.getElementById('fps-inv-panel');
-        if (panel) {
-          const isVisible = panel.style.display === 'flex';
-          panel.style.display = isVisible ? 'none' : 'flex';
-          addActionLog(isVisible ? '가방을 닫았다.' : '가방을 열었다.');
-        }
+        if (panel) panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
         return;
       }
 
       // 만들기 모달 열기 (한 번만 처리)
-      if (!isRepeat && (e.key === 'c' || e.key === 'C')) {
+      if (!isRepeat && (e.key === 'q' || e.key === 'Q')) {
         dispatch({ type:'SET_MODAL', modal:'crafting' });
-        addActionLog('제작 도구를 열었다.');
-        return;
-      }
-
-      // 공격 (한 번만 처리) - 미래 구현용
-      if (!isRepeat && e.key === ' ') {
-        // TODO: 공격 기능 구현
-        addActionLog('공격을 시도했다.');
+        addActionLog('제작 도구를 열었다.', 'system');
         return;
       }
 
@@ -400,11 +391,11 @@ export default function FPSCanvas() {
       if (!isRepeat) {
         if (e.key === 'a' || e.key === 'A') {
           targetAngleRef.current -= Math.PI / 2;
-          addActionLog('왼쪽으로 돌았다.');
+          addActionLog('왼쪽으로 돌았다.', 'move');
         }
         if (e.key === 'd' || e.key === 'D') {
           targetAngleRef.current += Math.PI / 2;
-          addActionLog('오른쪽으로 돌았다.');
+          addActionLog('오른쪽으로 돌았다.', 'move');
         }
       }
 
@@ -441,7 +432,7 @@ export default function FPSCanvas() {
 
         console.log('Movement allowed by raycast, dispatching MOVE with bypass');
         dispatch({ type: 'MOVE', dx, dy, bypassWallCheck: true });
-        addActionLog('앞으로 전진했다.');
+        addActionLog('앞으로 전진했다.', 'move');
       }
       if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
         console.log('=== Keyboard Backward (Rotation Sync) ===');
@@ -477,17 +468,17 @@ export default function FPSCanvas() {
 
         console.log('Movement allowed by raycast, dispatching MOVE with bypass');
         dispatch({ type: 'MOVE', dx: finalDx, dy: finalDy, bypassWallCheck: true });
-        addActionLog('뒤로 후진했다.');
+        addActionLog('뒤로 후진했다.', 'move');
       }
 
       // 회전 (키 반복 허용)
       if (e.key === 'ArrowLeft') {
         targetAngleRef.current -= Math.PI / 2;
-        addActionLog('왼쪽으로 돌았다.');
+        addActionLog('왼쪽으로 돌았다.', 'move');
       }
       if (e.key === 'ArrowRight') {
         targetAngleRef.current += Math.PI / 2;
-        addActionLog('오른쪽으로 돌았다.');
+        addActionLog('오른쪽으로 돌았다.', 'move');
       }
 
       lastKeyRef.current[e.key] = true;
@@ -507,25 +498,25 @@ export default function FPSCanvas() {
   // ── 인벤토리 아이템 렌더 ──────────────────────────────────────────────────
   function renderInvItems() {
     const inv = player.inventory;
-    const capacity = getInventoryCapacity(player);
     if (inv.length === 0) return (
       <div style={{ color:'#4b5563', fontSize:12, textAlign:'center', paddingTop:20 }}>
         아이템 없음
       </div>
     );
-    return inv.map((item: Item, i: number) => {
+    return inv.map((slot, i: number) => {
+      const item = slot.item;
       const isUsable = item.type === 'potion' || (item.type === 'special' && !item.capacity);
       const spec = item.type === 'weapon' ? `⚔️ +${item.attack}`
                  : item.type === 'armor'  ? `🛡️ +${item.defense}`
                  : item.type === 'potion' ? `❤️ +${item.heal}`
                  : item.capacity          ? `🎒 +${item.capacity}칸`
                  : item.description.slice(0, 12);
-      void capacity;
       return (
         <div key={i} style={{
           background:'#1e293b', border:'1px solid #374151',
           borderRadius:6, padding:'6px 8px',
           display:'flex', alignItems:'center', gap:7, fontSize:12, color:'#d1d5db',
+          position: 'relative',
         }}>
           <span style={{ fontSize:18, flexShrink:0 }}>{item.emoji}</span>
           <div style={{ flex:1, display:'flex', flexDirection:'column', gap:1, minWidth:0 }}>
@@ -534,6 +525,26 @@ export default function FPSCanvas() {
             </span>
             <span style={{ color:'#86efac', fontSize:10 }}>{spec}</span>
           </div>
+          {slot.quantity > 1 && (
+            <div style={{
+              position: 'absolute',
+              top: 4,
+              right: 4,
+              background: '#fbbf24',
+              color: '#000',
+              fontSize: 8,
+              fontWeight: 'bold',
+              borderRadius: 8,
+              minWidth: 14,
+              height: 14,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              lineHeight: 1,
+            }}>
+              {slot.quantity}
+            </div>
+          )}
           {isUsable && (
             <button onClick={() => dispatch({ type:'USE_ITEM', itemIndex:i })}
               style={{ padding:'2px 5px', background:'#14532d', border:'1px solid #4ade80',
@@ -588,7 +599,7 @@ export default function FPSCanvas() {
 
     console.log('Movement allowed by raycast, dispatching MOVE with bypass');
     dispatch({ type: 'MOVE', dx: finalDx, dy: finalDy, bypassWallCheck: true });
-    addActionLog(direction === 'forward' ? '앞으로 전진했다.' : '뒤로 후진했다.');
+    addActionLog(direction === 'forward' ? '앞으로 전진했다.' : '뒤로 후진했다.', 'move');
   }
 
   function handleTouchRotate(direction: 'left' | 'right') {
@@ -667,6 +678,91 @@ export default function FPSCanvas() {
       padding: 'env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)',
       boxSizing: 'border-box',
     }}>
+      {/* 상단 메뉴 바 */}
+      <div style={{
+        background: 'rgba(26,26,46,0.9)',
+        borderBottom: '1px solid #2a2a3e',
+        padding: '8px 16px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexShrink: 0,
+        fontSize: '12px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          <span style={{ color: '#a78bfa', fontWeight: 700, fontSize: 14 }}>
+           Stage {stage}
+          </span>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+            <span style={{ color: '#9ca3af', fontSize: 12 }}>
+              ⏱ <span style={{ color: '#fff' }}>{formatTime(elapsedSeconds)}</span>
+            </span>
+            <span style={{ color: '#9ca3af', fontSize: 12 }}>
+              👣 <span style={{
+                color: steps <= optimalSteps ? '#22c55e' : steps <= optimalSteps + 5 ? '#f59e0b' : '#ef4444',
+                fontWeight: 700
+              }}>
+                {steps}
+              </span>
+              <span style={{ color: '#6b7280' }}>/{optimalSteps}</span>
+            </span>
+            <span style={{ color: '#9ca3af', fontSize: 12 }}>
+              🎯 최적: <span style={{ color: '#22c55e', fontWeight: 700 }}>{optimalSteps}</span>
+            </span>
+            {/* 표시할 필요없는 정보같음 
+            <span style={{ color: '#9ca3af', fontSize: 12 }}>
+              🚪 출구: <span style={{ color: '#67e8f9', fontWeight: 700 }}>({exitPos.x},{exitPos.y})</span>
+            </span>
+             */}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => dispatch({ type: 'RETURN_TO_STAGE_SELECT' })}
+            style={{
+              background: 'transparent',
+              border: '1px solid #4338ca',
+              color: '#a5b4fc',
+              padding: '4px 8px',
+              borderRadius: 4,
+              fontSize: 10,
+              cursor: 'pointer',
+            }}
+          >
+            스테이지 선택
+          </button>
+          <button
+            onClick={() => dispatch({ type: 'RETURN_TO_SELECT' })}
+            style={{
+              background: 'transparent',
+              border: '1px solid #dc2626',
+              color: '#fca5a5',
+              padding: '4px 8px',
+              borderRadius: 4,
+              fontSize: 10,
+              cursor: 'pointer',
+            }}
+          >
+            나가기
+          </button>
+          <button
+            onClick={() => setShowHelp(prev => !prev)}
+            style={{
+              background: 'transparent',
+              border: '1px solid #0891b2',
+              color: '#67e8f9',
+              padding: '4px 8px',
+              borderRadius: 4,
+              fontSize: 10,
+              cursor: 'pointer',
+            }}
+          >
+            도움(H)
+          </button>
+        </div>
+      </div>
+
       {/* 게임 메인 화면 영역 */}
       <div ref={containerRef} style={{
         position: 'relative',
@@ -686,6 +782,109 @@ export default function FPSCanvas() {
           border:'1px solid #334155', borderRadius:3,
           background:'rgba(0,0,0,0.75)',
         }} />
+
+        {/* 전투 인라인 UI */}
+        {combatState && (
+          <div style={{
+            position: 'absolute',
+            top: '10px',
+            left: '10px',
+            background: 'rgba(17,24,39,0.95)',
+            border: '1px solid #dc2626',
+            borderRadius: 8,
+            padding: 12,
+            minWidth: 250,
+            zIndex: 10,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+              <span style={{ fontSize: 24 }}>{combatState.monster.emoji}</span>
+              <div style={{ flex: 1 }}>
+                <h4 style={{ color: '#f87171', margin: 0, fontSize: 14 }}>{combatState.monster.name}</h4>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                  <div style={{ width: 100, height: 6, background: '#374151', borderRadius: 3 }}>
+                    <div style={{
+                      width: `${(combatState.monster.currentHp / combatState.monster.maxHp) * 100}%`,
+                      height: '100%',
+                      background: '#ef4444',
+                      borderRadius: 3,
+                    }} />
+                  </div>
+                  <span style={{ fontSize: 10, color: '#f87171' }}>
+                    {combatState.monster.currentHp}/{combatState.monster.maxHp}
+                  </span>
+                </div>
+              </div>
+            </div>
+            {combatState.phase === 'player-turn' && (
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  onClick={() => dispatch({ type: 'COMBAT_ATTACK' })}
+                  style={{
+                    background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 4,
+                    padding: '6px 10px',
+                    fontSize: 10,
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  ⚔️ 공격
+                </button>
+                <button
+                  onClick={() => dispatch({ type: 'COMBAT_FLEE' })}
+                  style={{
+                    background: '#374151',
+                    color: '#d1d5db',
+                    border: '1px solid #6b7280',
+                    borderRadius: 4,
+                    padding: '6px 10px',
+                    fontSize: 10,
+                    cursor: 'pointer',
+                  }}
+                >
+                  🏃 도망
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 보물상자 인라인 UI */}
+        {chestState && (
+          <div style={{
+            position: 'absolute',
+            top: '10px',
+            left: '10px',
+            background: 'rgba(17,24,39,0.95)',
+            border: '1px solid #fbbf24',
+            borderRadius: 8,
+            padding: 12,
+            minWidth: 250,
+            zIndex: 10,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 24 }}>📦</span>
+              <h4 style={{ color: '#fbbf24', margin: 0, fontSize: 14 }}>보물상자 발견!</h4>
+            </div>
+            <button
+              onClick={() => dispatch({ type: 'CHEST_TAKE_ALL' })}
+              style={{
+                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                color: '#000',
+                border: 'none',
+                borderRadius: 4,
+                padding: '6px 12px',
+                fontSize: 10,
+                cursor: 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              📥 전부 획득
+            </button>
+          </div>
+        )}
 
       {/* 조준점 */}
       <div style={{
@@ -713,7 +912,7 @@ export default function FPSCanvas() {
       {/* ── 액션 로그 영역 ── */}
       <div style={{
         flexShrink: 0,
-        height: '120px',
+        height: '100px',
         background: 'linear-gradient(to bottom, rgba(15,23,42,0.95), rgba(30,41,59,0.95))',
         borderTop: '1px solid #334155',
         borderBottom: '1px solid #334155',
@@ -721,36 +920,72 @@ export default function FPSCanvas() {
         fontSize: 12,
         overflow: 'hidden',
         position: 'relative',
+        display: 'flex',
+        flexDirection: 'row',
       }}>
+
+        {/* 캐릭터 프사 영역 */}
         <div style={{
+          width: 88,
+          flexShrink: 0,
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '6px 12px',
-          background: 'rgba(51,65,85,0.8)',
-          borderBottom: '1px solid #475569',
+          justifyContent: 'center',
+          gap: 4,
+          borderRight: '1px solid #1e3a5f',
+          padding: '6px 4px',
+          background: 'rgba(10,20,40,0.6)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 14 }}>📜</span>
-            <span style={{ color: '#94a3b8', fontSize: 11, fontWeight: 'bold' }}>액션 로그</span>
+          {/* 캐릭터 이미지 */}
+          <div style={{
+            /* width: 66,
+            height: 66, */
+            borderRadius: 8,
+            border: `2px solid ${
+              player.hp / player.maxHp > 0.6 ? '#22c55e' :
+              player.hp / player.maxHp > 0.3 ? '#f59e0b' : '#ef4444'
+            }`,
+            overflow: 'hidden',
+            background: 'rgba(0,0,0,0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+          }}>
+            {player.characterId ? (
+              <img
+                src={`player/player_${player.characterId}.png`}
+                alt="character"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  imageRendering: 'pixelated',
+                }}
+                onError={e => {
+                  (e.currentTarget as HTMLImageElement).style.display = 'none';
+                }}
+              />
+            ) : (
+              <span style={{ fontSize: 28 }}>🧑</span>
+            )}
+            {/* HP 위기 오버레이 */}
+            {player.hp / player.maxHp <= 0.3 && (
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                background: 'rgba(239,68,68,0.15)',
+                animation: 'pulse 1s ease-in-out infinite',
+              }} />
+            )}
           </div>
-          <button
-            onClick={() => setActionLogs([])}
-            style={{
-              background: 'rgba(239,68,68,0.1)',
-              border: '1px solid #ef4444',
-              color: '#fca5a5',
-              fontSize: 10,
-              padding: '2px 6px',
-              borderRadius: 4,
-              cursor: 'pointer',
-            }}
-          >
-            지우기
-          </button>
+          
         </div>
+
+        {/* 로그 목록 */}
         <div style={{
-          height: 'calc(120px - 32px)',
+          flex: 1,
           overflowY: 'auto',
           padding: '8px 12px',
           display: 'flex',
@@ -770,9 +1005,11 @@ export default function FPSCanvas() {
           ) : (
             actionLogs.map((log, index) => (
               <div
-                key={index}
+                key={log.id}
                 style={{
-                  color: index === actionLogs.length - 1 ? '#e2e8f0' : '#94a3b8',
+                  color: log.type === 'move' ? '#93c5fd' :
+                        log.type === 'combat' ? '#f87171' :
+                        log.type === 'item' ? '#fbbf24' : '#e2e8f0',
                   fontSize: 11,
                   lineHeight: '1.3',
                   opacity: index === actionLogs.length - 1 ? 1 : 0.7,
@@ -781,7 +1018,7 @@ export default function FPSCanvas() {
                   borderLeft: index === actionLogs.length - 1 ? '2px solid #3b82f6' : 'none',
                 }}
               >
-                {log}
+                {log.message}
               </div>
             ))
           )}
@@ -799,153 +1036,159 @@ export default function FPSCanvas() {
       }}>
         {/* HUD 정보 */}
         <div style={{
+          width:'100%',
           padding:'8px 12px', display:'flex', flexDirection:'column', gap:6,
+          boxSizing:'border-box',
         }}>
-          {/* 바 영역 */}
-          <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
-            {/* HP */}
-            <div style={{ display:'flex', alignItems:'center', gap:5, minWidth:120 }}>
-              <span>❤️</span>
-              <div style={{ flex:1, background:'#1e293b', borderRadius:4, height:8, minWidth:60, overflow:'hidden' }}>
-                <div style={{ width:`${hpPct}%`, height:'100%', background:hpColor, borderRadius:4, transition:'width 0.3s' }} />
-              </div>
-              <span style={{ color:hpColor, fontSize:10, minWidth:45 }}>{player.hp}/{player.maxHp}</span>
-            </div>
-            {/* MP */}
-            <div style={{ display:'flex', alignItems:'center', gap:5, minWidth:120 }}>
-              <span>💧</span>
-              <div style={{ flex:1, background:'#1e293b', borderRadius:4, height:8, minWidth:60, overflow:'hidden' }}>
-                <div style={{ width:`${mpPct}%`, height:'100%', background:'#3b82f6', borderRadius:4, transition:'width 0.3s' }} />
-              </div>
-              <span style={{ color:'#3b82f6', fontSize:10, minWidth:45 }}>{player.mp}/{player.maxMp}</span>
-            </div>
-            
-          </div>
 
-          {/* 정보 줄 - 모바일에서는 간소화 */}
-          <div style={{ display:'flex', gap:8, flexWrap:'wrap', color:'#9ca3af', fontSize:10 }}>
-            <span>👣 <b style={{
-              color: steps <= optimalSteps ? '#22c55e' :
-                     steps <= optimalSteps + 5 ? '#f59e0b' : '#ef4444'
-            }}>{steps}</b>/<span style={{ color:'#86efac' }}>{optimalSteps}</span></span>
-            <span>⏱ <b style={{ color:'#e5e7eb' }}>{formatTime(elapsedSeconds)}</b></span>
-            <span>🗺 Stage <b style={{ color:'#a78bfa' }}>{stage}</b></span>
-            <span>{getElementEmoji(player.element)} <b style={{ color:'#a78bfa' }}>{getElementName(player.element)}</b></span>
-            <span>⚔️ <b style={{ color:'#fca5a5' }}>{atk}</b></span>
-            <span>🛡️ <b style={{ color:'#93c5fd' }}>{def}</b></span>
-          </div>
-
-          {/* 모바일 터치 컨트롤 */}
+          {/* 하단 컨트롤 영역: 좌 30% 스테이터스 / 우 70% 컨트롤 */}
           <div style={{
             display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
+            alignItems: 'stretch',
             padding: '8px 0',
-            gap: 12,
+            gap: 0,
+            width: '100%',
           }}>
-            {/* 맨 왼쪽: 플레이어 프로필 */}
+            {/* 왼쪽 30%: 플레이어 스테이터스 */}
             <div style={{
+              width: '30%',
               display: 'flex',
-              alignItems: 'center',
+              flexDirection: 'column',
+              justifyContent: 'center',
               background: 'rgba(30,41,59,0.8)',
               border: '1px solid #374151',
               borderRadius: 8,
-              padding: '4px',
-              minWidth: 50,
+              padding: '6px 8px',
+              gap: 6,
+              boxSizing: 'border-box',
             }}>
-              <div style={{
-                width: 40,
-                height: 40,
-                borderRadius: '50%',
-                background: `linear-gradient(135deg, ${
-                  player.element === 'fire' ? '#f87171, #dc2626' :
-                  player.element === 'water' ? '#60a5fa, #2563eb' :
-                  player.element === 'earth' ? '#65a30d, #16a34a' :
-                  '#a78bfa, #7c3aed'
-                })`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 18,
-                border: '2px solid rgba(255,255,255,0.2)',
-              }}>
-                {/* 캐릭터별 이모지 표시 */}
-                {player.element === 'earth' ? '🧀🐱' :
-                 player.element === 'water' ? '🤵🐱' :
-                 player.element === 'fire' ? '🍞🐱' :
-                 '🐱'}
+              {/* HP */}
+              <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                <span style={{ fontSize:12 }}>❤️</span>
+                <div style={{ flex:1, background:'#1e293b', borderRadius:4, height:7, overflow:'hidden' }}>
+                  <div style={{ width:`${hpPct}%`, height:'100%', background:hpColor, borderRadius:4, transition:'width 0.3s' }} />
+                </div>
+                <span style={{ color:hpColor, fontSize:10, whiteSpace:'nowrap', width:44, textAlign:'right' }}>{player.hp}/{player.maxHp}</span>
+              </div>
+              {/* MP */}
+              <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                <span style={{ fontSize:12 }}>💧</span>
+                <div style={{ flex:1, background:'#1e293b', borderRadius:4, height:7, overflow:'hidden' }}>
+                  <div style={{ width:`${mpPct}%`, height:'100%', background:'#3b82f6', borderRadius:4, transition:'width 0.3s' }} />
+                </div>
+                <span style={{ color:'#3b82f6', fontSize:10, whiteSpace:'nowrap', width:44, textAlign:'right' }}>{player.mp}/{player.maxMp}</span>
+              </div>
+              {/* 스탯 */}
+              <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', fontSize:10 }}>
+                <span>{getElementEmoji(player.element)} <b style={{ color:'#a78bfa' }}>{getElementName(player.element)}</b></span>
+                <span>⚔️ <b style={{ color:'#fca5a5' }}>{atk}</b></span>
+                <span>🛡️ <b style={{ color:'#93c5fd' }}>{def}</b></span>
+                <span>🎒 <b style={{ color: player.inventory.length >= 20 ? '#ef4444' : '#fbbf24' }}>{player.inventory.length}/20</b></span>
               </div>
             </div>
 
-            {/* 중간: 액션 버튼들 */}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button
-                onClick={() => {
-                  const panel = document.getElementById('fps-inv-panel');
-                  if (panel) panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
-                }}
-                style={{
-                  background:'rgba(30,41,59,0.95)', border:'1px solid #4f46e5',
-                  color:'#a5b4fc', fontSize:12, borderRadius:6, padding:'6px 10px',
-                  cursor:'pointer', userSelect:'none', touchAction:'manipulation',
-                }}>가방</button>
-              <button
-                onClick={() => dispatch({ type:'SET_MODAL', modal:'crafting' })}
-                style={{
-                  background:'rgba(30,41,59,0.95)', border:'1px solid #7c3aed',
-                  color:'#c4b5fd', fontSize:12, borderRadius:6, padding:'6px 10px',
-                  cursor:'pointer', userSelect:'none', touchAction:'manipulation',
-                }}>만들기</button>
-            </div>
+            {/* 오른쪽 70%: 컨트롤 영역 */}
+            <div style={{
+              width: '70%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-around',
+              paddingLeft: 8,
+              gap: 8,
+              boxSizing: 'border-box',
+            }}>
+              {/* 액션 버튼들 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <button
+                  onClick={() => {
+                    const panel = document.getElementById('fps-inv-panel');
+                    if (panel) panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+                  }}
+                  style={{
+                    background:'rgba(30,41,59,0.95)', border:'1px solid #4f46e5',
+                    color:'#a5b4fc', fontSize:12, borderRadius:6, padding:'6px 14px',
+                    cursor:'pointer', userSelect:'none', touchAction:'manipulation',
+                  }}>가방(E)</button>
+                <button
+                  onClick={() => dispatch({ type:'SET_MODAL', modal:'crafting' })}
+                  style={{
+                    background:'rgba(30,41,59,0.95)', border:'1px solid #7c3aed',
+                    color:'#c4b5fd', fontSize:12, borderRadius:6, padding:'6px 14px',
+                    cursor:'pointer', userSelect:'none', touchAction:'manipulation',
+                  }}>만들기(Q)</button>
+              </div>
 
-            {/* 오른쪽: 이동 컨트롤 */}
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,45px)', gridTemplateRows:'repeat(2,45px)', gap:3 }}>
-              <div />
-              <button
-                onPointerDown={() => handleButtonPress('up')}
-                onPointerUp={() => handleButtonRelease('up')}
-                onPointerLeave={() => handleButtonRelease('up')}
-                style={{
-                  ...padBtnStyle,
-                  ...(pressedButtons.has('up') ? padBtnActiveStyle : {}),
-                }}
-              >
-                ↑
-              </button>
-              <div />
-              <button
-                onPointerDown={() => handleButtonPress('left')}
-                onPointerUp={() => handleButtonRelease('left')}
-                onPointerLeave={() => handleButtonRelease('left')}
-                style={{
-                  ...padBtnStyle,
-                  ...(pressedButtons.has('left') ? padBtnActiveStyle : {}),
-                }}
-              >
-                ←
-              </button>
-              <button
-                onPointerDown={() => handleButtonPress('down')}
-                onPointerUp={() => handleButtonRelease('down')}
-                onPointerLeave={() => handleButtonRelease('down')}
-                style={{
-                  ...padBtnStyle,
-                  ...(pressedButtons.has('down') ? padBtnActiveStyle : {}),
-                }}
-              >
-                ↓
-              </button>
-              <button
-                onPointerDown={() => handleButtonPress('right')}
-                onPointerUp={() => handleButtonRelease('right')}
-                onPointerLeave={() => handleButtonRelease('right')}
-                style={{
-                  ...padBtnStyle,
-                  ...(pressedButtons.has('right') ? padBtnActiveStyle : {}),
-                }}
-              >
-                →
-              </button>
+              {/* 이동 컨트롤 + 공격/도망 버튼 */}
+              <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
+                {/* 공격 / 도망 버튼 */}
+                <div style={{ display:'flex', gap:4 }}>
+                  <button
+                    disabled={activeModal !== 'combat'}
+                    onClick={() => dispatch({ type:'COMBAT_ATTACK' })}
+                    style={{
+                      background: activeModal === 'combat' ? 'rgba(127,29,29,0.85)' : 'rgba(55,65,81,0.6)',
+                      border: `1px solid ${activeModal === 'combat' ? '#ef4444' : '#4b5563'}`,
+                      color: activeModal === 'combat' ? '#fca5a5' : '#6b7280',
+                      fontSize:11, borderRadius:6, padding:'5px 10px',
+                      cursor: activeModal === 'combat' ? 'pointer' : 'not-allowed',
+                      userSelect:'none', touchAction:'manipulation', fontWeight:'bold',
+                      opacity: activeModal === 'combat' ? 1 : 0.5,
+                    }}>공격(space)</button>
+                  <button
+                    disabled={activeModal !== 'combat'}
+                    onClick={() => dispatch({ type:'COMBAT_FLEE' })}
+                    style={{
+                      background: activeModal === 'combat' ? 'rgba(20,83,45,0.85)' : 'rgba(55,65,81,0.6)',
+                      border: `1px solid ${activeModal === 'combat' ? '#22c55e' : '#4b5563'}`,
+                      color: activeModal === 'combat' ? '#86efac' : '#6b7280',
+                      fontSize:11, borderRadius:6, padding:'5px 10px',
+                      cursor: activeModal === 'combat' ? 'pointer' : 'not-allowed',
+                      userSelect:'none', touchAction:'manipulation', fontWeight:'bold',
+                      opacity: activeModal === 'combat' ? 1 : 0.5,
+                    }}>도   망(Z)</button>
+                </div>
+                {/* 방향키 그리드 */}
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(3,45px)', gridTemplateRows:'repeat(2,45px)', gap:3 }}>
+                <div />
+                <button
+                  onPointerDown={() => handleButtonPress('up')}
+                  onPointerUp={() => handleButtonRelease('up')}
+                  onPointerLeave={() => handleButtonRelease('up')}
+                  style={{
+                    ...padBtnStyle,
+                    ...(pressedButtons.has('up') ? padBtnActiveStyle : {}),
+                  }}
+                >↑(W)</button>
+                <div />
+                <button
+                  onPointerDown={() => handleButtonPress('left')}
+                  onPointerUp={() => handleButtonRelease('left')}
+                  onPointerLeave={() => handleButtonRelease('left')}
+                  style={{
+                    ...padBtnStyle,
+                    ...(pressedButtons.has('left') ? padBtnActiveStyle : {}),
+                  }}
+                >←(A)</button>
+                <button
+                  onPointerDown={() => handleButtonPress('down')}
+                  onPointerUp={() => handleButtonRelease('down')}
+                  onPointerLeave={() => handleButtonRelease('down')}
+                  style={{
+                    ...padBtnStyle,
+                    ...(pressedButtons.has('down') ? padBtnActiveStyle : {}),
+                  }}
+                >↓(S)</button>
+                <button
+                  onPointerDown={() => handleButtonPress('right')}
+                  onPointerUp={() => handleButtonRelease('right')}
+                  onPointerLeave={() => handleButtonRelease('right')}
+                  style={{
+                    ...padBtnStyle,
+                    ...(pressedButtons.has('right') ? padBtnActiveStyle : {}),
+                  }}
+                >→(D)</button>
+              </div>
+              </div>{/* 이동 컨트롤 + 공격/도망 래퍼 */}
             </div>
           </div>
         </div>
@@ -997,7 +1240,7 @@ export default function FPSCanvas() {
         }}>
           <div style={{
             background:'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-            border:'2px solid #4f46e5',
+            border:'2px solid #6b68a4',
             borderRadius:16,
             maxWidth:500,
             width:'100%',
@@ -1007,11 +1250,11 @@ export default function FPSCanvas() {
           }}>
             <div style={{
               display:'flex', justifyContent:'space-between', alignItems:'center',
-              padding:'20px 24px 16px', borderBottom:'2px solid #475569',
+              padding:'13px 24px 10px', borderBottom:'2px solid #475569',
               background:'rgba(79, 70, 229, 0.1)',
             }}>
               <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                <span style={{ fontSize:28 }}>⌨️</span>
+                <span style={{ fontSize:26 }}>⌨️</span>
                 <span style={{ color:'#e2e8f0', fontSize:20, fontWeight:'bold' }}>키보드 단축키</span>
               </div>
               <button
@@ -1034,8 +1277,8 @@ export default function FPSCanvas() {
                 ✕
               </button>
             </div>
-            <div style={{ padding:'24px' }}>
-              <div style={{ display:'grid', gap:16 }}>
+            <div style={{ padding:'14px' }}>
+              <div style={{ display:'grid', gap:8 }}>
                 {/* 이동 컨트롤 */}
                 <div style={{
                   background:'rgba(30, 41, 59, 0.8)',
@@ -1045,16 +1288,16 @@ export default function FPSCanvas() {
                 }}>
                   <h3 style={{
                     color:'#60a5fa',
-                    fontSize:16,
+                    fontSize:13,
                     fontWeight:'bold',
-                    margin:'0 0 12px 0',
+                    margin:'0 0 8px 0',
                     display:'flex',
                     alignItems:'center',
                     gap:8
                   }}>
                     🏃 이동
                   </h3>
-                  <div style={{ display:'grid', gap:8, fontSize:14 }}>
+                  <div style={{ display:'grid', gap:6, fontSize:14 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                       <span style={{ color:'#e2e8f0' }}>앞으로 이동</span>
                       <div style={{ display:'flex', gap:4 }}>
@@ -1116,6 +1359,24 @@ export default function FPSCanvas() {
                       </div>
                     </div>
                   </div>
+
+                  {/* 팁 섹션 */}
+                  <div style={{
+                    background:'none',
+                    padding:'12px 0px 0px 0px',
+                    borderRadius:12,
+                    border:'none',
+                  }}>
+                    <p style={{
+                      color:'#a7f3d0',
+                      fontSize:13,
+                      lineHeight:'1.4',
+                      margin:0,
+                    }}>
+                      키를 누르고 있으면 계속 이동할 수 있어요! 미로를 빠르게 탐험해보세요.
+                    </p>
+                  </div>
+
                 </div>
 
                 {/* 기타 컨트롤 */}
@@ -1125,73 +1386,51 @@ export default function FPSCanvas() {
                   borderRadius:12,
                   border:'1px solid #475569'
                 }}>
-                  <h3 style={{
-                    color:'#a78bfa',
-                    fontSize:16,
-                    fontWeight:'bold',
-                    margin:'0 0 12px 0',
-                    display:'flex',
-                    alignItems:'center',
-                    gap:8
-                  }}>
-                    🎮 기타
-                  </h3>
-                  <div style={{ display:'grid', gap:8, fontSize:14 }}>
+                  <div style={{ display:'grid', gap:6, fontSize:14 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                       <span style={{ color:'#e2e8f0' }}>도움말 보기/숨기기</span>
                       <kbd style={{
-                        background:'#7c3aed', color:'#ffffff', padding:'4px 8px',
+                        background:'#374151', color:'#ffffff', padding:'4px 12px',
                         borderRadius:6, fontSize:12, fontFamily:'monospace',
-                        border:'1px solid #8b5cf6'
-                      }}>H</kbd>
+                        border:'1px solid #4b5563'
+                      }}>h / H</kbd>
                     </div>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                       <span style={{ color:'#e2e8f0' }}>가방 열기/닫기</span>
                       <kbd style={{
-                        background:'#374151', color:'#f3f4f6', padding:'4px 8px',
+                        background:'#374151', color:'#f3f4f6', padding:'4px 12px',
                         borderRadius:6, fontSize:12, fontFamily:'monospace',
                         border:'1px solid #4b5563'
-                      }}>I</kbd>
+                      }}>e / E</kbd>
                     </div>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                       <span style={{ color:'#e2e8f0' }}>제작 메뉴</span>
                       <kbd style={{
-                        background:'#374151', color:'#f3f4f6', padding:'4px 8px',
+                        background:'#374151', color:'#f3f4f6', padding:'4px 12px',
                         borderRadius:6, fontSize:12, fontFamily:'monospace',
                         border:'1px solid #4b5563'
-                      }}>C</kbd>
+                      }}>q / Q</kbd>
                     </div>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                      <span style={{ color:'#e2e8f0' }}>공격</span>
+                      <span style={{ color:'#e2e8f0' }}>공격 <span style={{ color:'#f87171', fontSize:11 }}>(전투 중)</span></span>
                       <kbd style={{
-                        background:'#dc2626', color:'#ffffff', padding:'4px 8px',
+                        background:'#dc2626', color:'#ffffff', padding:'4px 12px',
                         borderRadius:6, fontSize:12, fontFamily:'monospace',
                         border:'1px solid #ef4444'
                       }}>Space</kbd>
                     </div>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <span style={{ color:'#e2e8f0' }}>도망가기 <span style={{ color:'#f87171', fontSize:11 }}>(전투 중)</span></span>
+                      <kbd style={{
+                        background:'#374151', color:'#ffffff', padding:'4px 12px',
+                        borderRadius:6, fontSize:12, fontFamily:'monospace',
+                        border:'1px solid #4b5563'
+                      }}>z / Z</kbd>
+                    </div>
                   </div>
                 </div>
 
-                {/* 팁 섹션 */}
-                <div style={{
-                  background:'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%)',
-                  padding:16,
-                  borderRadius:12,
-                  border:'1px solid #10b981',
-                }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
-                    <span style={{ fontSize:16 }}>💡</span>
-                    <span style={{ color:'#10b981', fontSize:14, fontWeight:'bold' }}>팁</span>
-                  </div>
-                  <p style={{
-                    color:'#a7f3d0',
-                    fontSize:13,
-                    lineHeight:'1.4',
-                    margin:0,
-                  }}>
-                    키를 누르고 있으면 계속 이동할 수 있어요! 미로를 빠르게 탐험해보세요.
-                  </p>
-                </div>
+                
               </div>
             </div>
           </div>

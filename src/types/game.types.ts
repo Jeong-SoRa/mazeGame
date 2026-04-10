@@ -23,6 +23,11 @@ export interface Item {
   element?: Element; // 속성 (무기, 방어구에만 적용)
 }
 
+export interface InventorySlot {
+  item: Item;
+  quantity: number;
+}
+
 export interface MonsterTemplate {
   id: string;
   name: string;
@@ -74,8 +79,9 @@ export interface PlayerState {
   maxMp: number;
   baseAttack: number;
   baseDefense: number;
-  inventory: Item[];
+  inventory: InventorySlot[];
   element: Element; // 플레이어 속성
+  characterId?: string; // 선택한 캐릭터 ID
 }
 
 export interface CombatLog {
@@ -99,7 +105,14 @@ export interface DiscardState {
   pendingItems: Item[];
 }
 
-export type GameScreen = 'character-select' | 'playing' | 'stage-clear' | 'game-over';
+export interface ActionLog {
+  id: string;
+  type: 'move' | 'combat' | 'item' | 'system';
+  message: string;
+  timestamp: number;
+}
+
+export type GameScreen = 'character-select' | 'stage-select' | 'playing' | 'stage-clear' | 'game-over';
 export type ActiveModal = 'combat' | 'chest' | 'crafting' | 'ranking' | 'discard' | null;
 
 export interface GameState {
@@ -127,6 +140,7 @@ export interface GameState {
   message: string | null;
   completionTime: number | null;
   mapRevealTimer: number;
+  actionLogs: ActionLog[];
 }
 
 export interface RankingEntry {
@@ -157,4 +171,7 @@ export type GameAction =
   | { type: 'SET_MODAL'; modal: ActiveModal }
   | { type: 'TICK' }
   | { type: 'CLEAR_MESSAGE' }
-  | { type: 'RETURN_TO_SELECT' };
+  | { type: 'RETURN_TO_SELECT' }
+  | { type: 'RETURN_TO_STAGE_SELECT' }
+  | { type: 'ADD_ACTION_LOG'; logType: 'move' | 'combat' | 'item' | 'system'; message: string }
+  | { type: 'CLEAR_ACTION_LOGS' };

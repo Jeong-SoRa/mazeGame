@@ -1,8 +1,79 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
-import type { GameState, GameAction, PlayerState, CombatState, Character } from '../types/game.types';
+import type { GameState, GameAction, PlayerState, CombatState, Character, Item, InventorySlot } from '../types/game.types';
 import { generateMap } from '../game/MazeGenerator';
 import { ITEMS, craftItems } from '../game/ItemDatabase';
 import { doPlayerAttack, usePotion, tryFlee, calculateDrops, getPlayerDefense, getInventoryCapacity } from '../game/CombatSystem';
+
+// ─── 인벤토리 스택 관리 함수들 ──────────────────────────────────────────────────
+function getMaxStackSize(item: Item): number {
+  // 소모품(포션, 재료)은 10개까지 스택 가능
+  if (item.type === 'potion' || item.type === 'material') {
+    return 10;
+  }
+  // 장비류는 스택 불가
+  return 1;
+}
+
+function canStackWith(slot: InventorySlot, item: Item): boolean {
+  return slot.item.id === item.id && slot.quantity < getMaxStackSize(item);
+}
+
+function addItemsToInventory(inventory: InventorySlot[], items: Item[]): { newInventory: InventorySlot[]; overflow: Item[] } {
+  const newInventory = [...inventory];
+  const overflow: Item[] = [];
+
+  for (const item of items) {
+    let remaining = 1; // 각 아이템은 1개씩 추가
+
+    // 기존 스택에서 추가 가능한 슬롯 찾기
+    for (const slot of newInventory) {
+      if (remaining === 0) break;
+      if (canStackWith(slot, item)) {
+        const canAdd = Math.min(remaining, getMaxStackSize(item) - slot.quantity);
+        slot.quantity += canAdd;
+        remaining -= canAdd;
+      }
+    }
+
+    // 새 슬롯 추가
+    while (remaining > 0 && newInventory.length < 20) { // 최대 20슬롯
+      const stackSize = Math.min(remaining, getMaxStackSize(item));
+      newInventory.push({
+        item: item,
+        quantity: stackSize
+      });
+      remaining -= stackSize;
+    }
+
+    // 남은 아이템은 오버플로우
+    for (let i = 0; i < remaining; i++) {
+      overflow.push(item);
+    }
+  }
+
+  return { newInventory, overflow };
+}
+
+function removeItemFromInventory(inventory: InventorySlot[], slotIndex: number, quantity: number = 1): InventorySlot[] {
+  const newInventory = [...inventory];
+  const slot = newInventory[slotIndex];
+
+  if (slot && slot.quantity >= quantity) {
+    if (slot.quantity === quantity) {
+      // 슬롯 제거
+      newInventory.splice(slotIndex, 1);
+    } else {
+      // 수량만 감소
+      slot.quantity -= quantity;
+    }
+  }
+
+  return newInventory;
+}
+
+function getInventorySlotCount(inventory: InventorySlot[]): number {
+  return inventory.length;
+}
 
 // ─── 초기 플레이어 ───────────────────────────────────────────────────────────
 function createInitialPlayer(character?: Character): PlayerState {
@@ -16,6 +87,7 @@ function createInitialPlayer(character?: Character): PlayerState {
       baseDefense: character.stats.defense,
       inventory: [],
       element: character.element,
+      characterId: character.id,
     };
   }
 
@@ -57,6 +129,7 @@ const initialState: GameState = {
   message: null,
   completionTime: null,
   mapRevealTimer: 0,
+  actionLogs: [],
 };
 
 // ─── 리듀서 ──────────────────────────────────────────────────────────────────
@@ -132,21 +205,48 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           log: [{ text: `⚠️ ${monster.name}(이)가 나타났습니다! (HP: ${monster.currentHp}/${monster.maxHp})`, type: 'system' }],
           phase: 'player-turn',
         };
-        return { ...state, activeModal: 'combat', combatState };
+
+        // 액션 로그 추가
+        const newLog = {
+          id: Date.now().toString(),
+          type: 'combat' as const,
+          message: `${monster.name}을 만났다.`,
+          timestamp: Date.now()
+        };
+        const updatedLogs = [...state.actionLogs, newLog];
+
+        return {
+          ...state,
+          playerPos: { x: nx, y: ny },
+          steps: state.steps + 1,
+          visitedCells: addVisited(state.visitedCells, nx, ny, state.mazeSize, state.maze),
+          combatState,
+          actionLogs: updatedLogs
+        };
       }
 
       // 보물상자 체크
       if (state.chests[key] && !state.chests[key].opened) {
         const chest = state.chests[key];
         const items = chest.items.map(id => ITEMS[id]).filter(Boolean);
+
+        // 액션 로그 추가
+        const newLog = {
+          id: Date.now().toString(),
+          type: 'item' as const,
+          message: '보물상자를 발견했다.',
+          timestamp: Date.now()
+        };
+        const updatedLogs = [...state.actionLogs, newLog];
+
         return {
           ...state,
           playerPos: { x: nx, y: ny },
           steps: state.steps + 1,
           visitedCells: addVisited(state.visitedCells, nx, ny, state.mazeSize, state.maze),
           chests: { ...state.chests, [key]: { ...chest, opened: true } },
-          activeModal: 'chest',
           chestState: { chestKey: key, items },
+          actionLogs: updatedLogs
         };
       }
 
@@ -156,6 +256,15 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       // 출구 도달 체크
       if (nx === state.exitPos.x && ny === state.exitPos.y) {
+        // 액션 로그 추가
+        const newLog = {
+          id: Date.now().toString(),
+          type: 'system' as const,
+          message: `🎉 스테이지 ${state.stage} 클리어! (${state.steps + 1}/${state.optimalSteps}걸음)`,
+          timestamp: Date.now()
+        };
+        const updatedLogs = [...state.actionLogs, newLog];
+
         return {
           ...state,
           playerPos: newPos,
@@ -164,7 +273,20 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           screen: 'stage-clear',
           completionTime: state.elapsedSeconds,
           maxClearedStage: Math.max(state.maxClearedStage, state.stage),
+          actionLogs: updatedLogs
         };
+      }
+
+      // 일반 이동 액션 로그
+      const newLog = {
+        id: Date.now().toString(),
+        type: 'move' as const,
+        message: `(${nx}, ${ny})로 이동했다.`,
+        timestamp: Date.now()
+      };
+      const updatedLogs = [...state.actionLogs, newLog];
+      if (updatedLogs.length > 50) {
+        updatedLogs.shift();
       }
 
       return {
@@ -172,6 +294,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         playerPos: newPos,
         steps: state.steps + 1,
         visitedCells: newVisited,
+        actionLogs: updatedLogs
       };
     }
 
@@ -184,19 +307,28 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (result.monsterDied) {
         // 드랍 계산
         const drops = calculateDrops(state.combatState.monster);
-        const capacity = getInventoryCapacity(state.player);
-        const canAdd = Math.max(0, capacity - state.player.inventory.length);
-        const toAdd = drops.slice(0, canAdd);
-        const pending = drops.slice(canAdd);
+        const { newInventory, overflow: pending } = addItemsToInventory(state.player.inventory, drops);
 
         const dropLogs = drops.length > 0
           ? [{ text: `🎁 획득: ${drops.map(i => i.emoji + i.name).join(', ')}`, type: 'system' as const }]
           : [{ text: '아이템이 드랍되지 않았습니다.', type: 'system' as const }];
 
-        const newInventory = [...state.player.inventory, ...toAdd];
         const monsterKey = state.combatState.monsterKey;
         const newMonsters = { ...state.monsters };
         delete newMonsters[monsterKey];
+
+        // 전투 승리 액션 로그 추가
+        const victoryLog = {
+          id: Date.now().toString(),
+          type: 'combat' as const,
+          message: `${state.combatState.monster.name}와의 전투에서 승리했다.` +
+                   (drops.length > 0 ? ` 전리품: ${drops.map(i => i.name + '(' + (i.type === 'material' ? '재료' : '1') + ')').join(', ')}` : ''),
+          timestamp: Date.now()
+        };
+        const updatedActionLogs = [...state.actionLogs, victoryLog];
+        if (updatedActionLogs.length > 50) {
+          updatedActionLogs.shift();
+        }
 
         // 몬스터가 있던 칸으로 이동
         const [mx, my] = monsterKey.split(',').map(Number);
@@ -216,6 +348,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             maxClearedStage: Math.max(state.maxClearedStage, state.stage),
             combatState: null,
             activeModal: null,
+            actionLogs: updatedActionLogs
           };
         }
 
@@ -233,6 +366,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             log: [...newLogs, ...dropLogs, ...(pending.length > 0 ? [{ text: `⚠️ 가방이 가득 찼습니다! ${pending.length}개의 아이템을 버려야 합니다.`, type: 'system' as const }] : [])],
             phase: 'player-won',
           },
+          actionLogs: updatedActionLogs
         };
       }
 
@@ -264,11 +398,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'COMBAT_USE_ITEM': {
       if (!state.combatState || state.combatState.phase !== 'player-turn') return state;
 
-      const item = state.player.inventory[action.itemIndex];
-      if (!item || item.type !== 'potion') return state;
+      const slot = state.player.inventory[action.itemIndex];
+      if (!slot || slot.item.type !== 'potion') return state;
 
-      const { hpAfter, log } = usePotion(state.player, item);
-      const newInventory = state.player.inventory.filter((_, i) => i !== action.itemIndex);
+      const { hpAfter, log } = usePotion(state.player, slot.item);
+      const newInventory = removeItemFromInventory(state.player.inventory, action.itemIndex, 1);
 
       return {
         ...state,
@@ -345,27 +479,38 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'CHEST_TAKE_ALL': {
       if (!state.chestState) return state;
 
-      const capacity = getInventoryCapacity(state.player);
-      const canAdd = Math.max(0, capacity - state.player.inventory.length);
-      const toAdd = state.chestState.items.slice(0, canAdd);
-      const pending = state.chestState.items.slice(canAdd);
+      const { newInventory, overflow: pending } = addItemsToInventory(state.player.inventory, state.chestState.items);
+
+      // 액션 로그 추가
+      const acquiredItems = [...state.chestState.items];
+      const chestLog = {
+        id: Date.now().toString(),
+        type: 'item' as const,
+        message: `보물상자에서 ${acquiredItems.map(item => item.name + '(' + (item.type === 'material' ? '재료' : '1') + ')').join(', ')}을 습득했다.`,
+        timestamp: Date.now()
+      };
+      const updatedActionLogs = [...state.actionLogs, chestLog];
+      if (updatedActionLogs.length > 50) {
+        updatedActionLogs.shift();
+      }
 
       if (pending.length > 0) {
         return {
           ...state,
-          player: { ...state.player, inventory: [...state.player.inventory, ...toAdd] },
+          player: { ...state.player, inventory: newInventory },
           activeModal: 'discard',
           chestState: null,
           discardState: { pendingItems: pending },
-          message: `📦 ${toAdd.length}개 획득. 가방이 가득 찼습니다!`,
+          message: `📦 ${state.chestState.items.length - pending.length}개 획득. 가방이 가득 찼습니다!`,
+          actionLogs: updatedActionLogs
         };
       }
       return {
         ...state,
-        player: { ...state.player, inventory: [...state.player.inventory, ...toAdd] },
-        activeModal: null,
+        player: { ...state.player, inventory: newInventory },
         chestState: null,
-        message: `📦 ${toAdd.length}개의 아이템을 획득했습니다!`,
+        message: `📦 ${state.chestState.items.length}개의 아이템을 획득했습니다!`,
+        actionLogs: updatedActionLogs
       };
     }
 
@@ -401,16 +546,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
 
       const [i1, i2] = selectedCraftItems;
-      const item1 = player.inventory[i1];
-      const item2 = player.inventory[i2];
-      if (!item1 || !item2) return state;
+      const slot1 = player.inventory[i1];
+      const slot2 = player.inventory[i2];
+      if (!slot1 || !slot2) return state;
 
-      const result = craftItems(item1.id, item2.id);
+      const result = craftItems(slot1.item.id, slot2.item.id);
+
+      // 재료 소모 (성공/실패 관계없이 소모)
+      let tempInventory = removeItemFromInventory(player.inventory, Math.max(i1, i2), 1); // 큰 인덱스부터 제거
+      tempInventory = removeItemFromInventory(tempInventory, Math.min(i1, i2), 1);
 
       if (result) {
-        // 두 아이템 제거 후 결과 추가
-        const newInventory = player.inventory.filter((_, i) => i !== i1 && i !== i2);
-        newInventory.push(result);
+        // 조합 성공시 결과 아이템 추가
+        const { newInventory } = addItemsToInventory(tempInventory, [result]);
         return {
           ...state,
           player: { ...state.player, inventory: newInventory, mp: player.mp - MP_COST },
@@ -418,11 +566,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           craftResult: { success: true, item: result, message: `✨ ${result.emoji} ${result.name} 제작 성공! (MP -${MP_COST})` },
         };
       } else {
+        // 조합 실패시에도 재료는 소모
         return {
           ...state,
-          player: { ...state.player, mp: player.mp - MP_COST },
+          player: { ...state.player, inventory: tempInventory, mp: player.mp - MP_COST },
           selectedCraftItems: [],
-          craftResult: { success: false, item: null, message: '❌ 조합에 실패했습니다. 다른 조합을 시도해보세요.' },
+          craftResult: { success: false, item: null, message: '❌ 조합에 실패했습니다. 재료가 소모되었습니다.' },
         };
       }
     }
@@ -432,19 +581,19 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'USE_ITEM': {
-      const item = state.player.inventory[action.itemIndex];
-      if (!item) return state;
-      const newInventory = state.player.inventory.filter((_, i) => i !== action.itemIndex);
+      const slot = state.player.inventory[action.itemIndex];
+      if (!slot) return state;
+      const newInventory = removeItemFromInventory(state.player.inventory, action.itemIndex, 1);
 
-      if (item.type === 'potion') {
-        const healed = Math.min(state.player.maxHp, state.player.hp + (item.heal ?? 0));
+      if (slot.item.type === 'potion') {
+        const healed = Math.min(state.player.maxHp, state.player.hp + (slot.item.heal ?? 0));
         return {
           ...state,
           player: { ...state.player, hp: healed, inventory: newInventory },
-          message: `${item.emoji} ${item.name} 사용! HP +${item.heal}`,
+          message: `${slot.item.emoji} ${slot.item.name} 사용! HP +${slot.item.heal}`,
         };
       }
-      if (item.id === 'eagle') {
+      if (slot.item.id === 'eagle') {
         return {
           ...state,
           player: { ...state.player, inventory: newInventory },
@@ -456,15 +605,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     }
 
     case 'DROP_ITEM': {
-      const newInventory = state.player.inventory.filter((_, i) => i !== action.itemIndex);
+      const newInventory = removeItemFromInventory(state.player.inventory, action.itemIndex, 1);
 
       // 버리기 후 대기 중인 아이템 자동 추가
       if (state.discardState && state.discardState.pendingItems.length > 0) {
-        const newCapacity = getInventoryCapacity({ ...state.player, inventory: newInventory });
-        const canAdd = Math.max(0, newCapacity - newInventory.length);
-        const toAdd = state.discardState.pendingItems.slice(0, canAdd);
-        const remaining = state.discardState.pendingItems.slice(canAdd);
-        const finalInventory = [...newInventory, ...toAdd];
+        const { newInventory: finalInventory, overflow: remaining } = addItemsToInventory(newInventory, state.discardState.pendingItems);
 
         if (remaining.length === 0) {
           return {
@@ -511,6 +656,32 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
     case 'RETURN_TO_SELECT': {
       return { ...initialState, screen: 'character-select', maxClearedStage: state.maxClearedStage };
+    }
+
+    case 'RETURN_TO_STAGE_SELECT': {
+      return { ...state, screen: 'stage-select', activeModal: null };
+    }
+
+    case 'ADD_ACTION_LOG': {
+      const { logType, message } = action;
+      const newLog = {
+        id: Date.now().toString(),
+        type: logType,
+        message,
+        timestamp: Date.now()
+      };
+
+      // 최대 50개까지만 유지 (오래된 것부터 제거)
+      const updatedLogs = [...state.actionLogs, newLog];
+      if (updatedLogs.length > 50) {
+        updatedLogs.shift();
+      }
+
+      return { ...state, actionLogs: updatedLogs };
+    }
+
+    case 'CLEAR_ACTION_LOGS': {
+      return { ...state, actionLogs: [] };
     }
 
     default:

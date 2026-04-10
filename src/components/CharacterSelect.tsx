@@ -56,7 +56,40 @@ export default function CharacterSelect({ user }: Props) {
   }
 
   return (
-    <div style={{
+    <>
+      <style>
+        {`
+          @keyframes rainbow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+          }
+
+          @keyframes pixelGlow {
+            0% {
+              text-shadow:
+                -2px -2px 0 #000,
+                2px -2px 0 #000,
+                -2px 2px 0 #000,
+                2px 2px 0 #000,
+                0 0 15px rgba(255, 107, 107, 0.5),
+                0 0 30px rgba(255, 217, 61, 0.3),
+                4px 4px 0 rgba(0, 0, 0, 0.5);
+            }
+            100% {
+              text-shadow:
+                -3px -3px 0 #000,
+                3px -3px 0 #000,
+                -3px 3px 0 #000,
+                3px 3px 0 #000,
+                0 0 25px rgba(255, 107, 107, 0.8),
+                0 0 50px rgba(255, 217, 61, 0.6),
+                6px 6px 0 rgba(0, 0, 0, 0.7);
+            }
+          }
+        `}
+      </style>
+      <div style={{
       height: '100vh',
       display: 'flex',
       flexDirection: 'column',
@@ -79,7 +112,7 @@ export default function CharacterSelect({ user }: Props) {
           <span style={{ color: '#d1d5db', fontSize: 14 }}>{user.displayName}</span>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <span style={{ color: '#a78bfa', fontWeight: 700, fontSize: 18 }}>🗺️ 캐릭터 선택</span>
+          <span style={{ color: '#a78bfa', fontWeight: 700, fontSize: 18 }}>Breaking MAZE</span>
           <button onClick={logout} style={{
             background: 'transparent', border: '1px solid #4a4a6e',
             color: '#9ca3af', padding: '4px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12,
@@ -89,7 +122,67 @@ export default function CharacterSelect({ user }: Props) {
 
       {/* 캐릭터 선택 메인 영역 */}
       <div style={{ flex: 1, overflow: 'auto', padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <h2 style={{ color: '#e8e8e8', textAlign: 'center', marginBottom: 32, fontSize: 24 }}>
+        {/* 메인 게임 타이틀 */}
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <h1 style={{
+            fontSize: '4.5rem',
+            fontWeight: '900',
+            background: 'linear-gradient(45deg, #ff6b6b, #ffd93d, #6bcf7f, #4ecdc4, #45b7d1, #96ceb4, #feca57)',
+            backgroundSize: '300% 300%',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            color: 'transparent',
+            fontFamily: '"Courier New", "Consolas", "Monaco", monospace',
+            letterSpacing: '0.15em',
+            margin: '0 0 12px 0',
+            animation: 'rainbow 3s ease-in-out infinite, pixelGlow 2s ease-in-out infinite alternate',
+            textTransform: 'uppercase',
+            transform: 'scaleY(1.1)',
+            WebkitTextStroke: '2px #000',
+            textShadow: `
+              -2px -2px 0 #000,
+              2px -2px 0 #000,
+              -2px 2px 0 #000,
+              2px 2px 0 #000,
+              0 0 20px rgba(255, 107, 107, 0.6),
+              0 0 40px rgba(255, 217, 61, 0.4),
+              4px 4px 0 rgba(0, 0, 0, 0.5)
+            `,
+            filter: 'contrast(1.2)',
+          }}>
+            Breaking MAZE
+          </h1>
+
+          <p style={{
+            fontSize: '1.3rem',
+            color: '#c4b5fd',
+            marginBottom: '8px',
+            fontWeight: '600',
+            fontFamily: '"Courier New", "Consolas", "Monaco", monospace',
+            letterSpacing: '0.08em',
+            textShadow: `
+              -1px -1px 0 rgba(0, 0, 0, 0.8),
+              1px -1px 0 rgba(0, 0, 0, 0.8),
+              -1px 1px 0 rgba(0, 0, 0, 0.8),
+              1px 1px 0 rgba(0, 0, 0, 0.8),
+              0 0 8px rgba(167, 139, 250, 0.6)
+            `,
+            transform: 'scaleY(1.05)',
+          }}>
+            몬스터를 잡고 아이템을 만들면서 강해져서 미로를 탈출하세요
+          </p>
+
+          <div style={{
+            width: '100px',
+            height: '3px',
+            background: 'linear-gradient(90deg, #6366f1, #8b5cf6, #ec4899)',
+            margin: '0 auto',
+            borderRadius: '2px',
+            boxShadow: '0 0 10px rgba(99, 102, 241, 0.5)',
+          }} />
+        </div>
+
+        <h2 style={{ color: '#e8e8e8', textAlign: 'center', marginBottom: 32, fontSize: 20, fontWeight: '400' }}>
           미로탈출을 함께 할 친구를 선택하세요
         </h2>
 
@@ -99,121 +192,123 @@ export default function CharacterSelect({ user }: Props) {
           gap: 20,
           maxWidth: 900,
           width: '100%',
-          marginBottom: 32,
         }}>
-          {characters.map(character => (
-            <div key={character.id} style={{
-              background: selectedCharacter?.id === character.id ? '#2a2a4e' : '#1a1a2e',
-              border: `2px solid ${selectedCharacter?.id === character.id ? '#6366f1' : '#2a2a4e'}`,
-              borderRadius: 12,
-              padding: 20,
-              textAlign: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              transform: selectedCharacter?.id === character.id ? 'translateY(-2px)' : 'translateY(0)',
-            }}
-              onClick={() => setSelectedCharacter(character)}
-              onMouseEnter={e => {
-                if (selectedCharacter?.id !== character.id) {
-                  (e.currentTarget as HTMLDivElement).style.borderColor = '#4a4a6e';
-                  (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-1px)';
-                }
+          {characters.map(character => {
+            const isSelected = selectedCharacter?.id === character.id;
+            return (
+              <div key={character.id} style={{
+                position: 'relative',
+                background: isSelected ? '#2a2a4e' : '#1a1a2e',
+                border: `2px solid ${isSelected ? '#6366f1' : '#2a2a4e'}`,
+                borderRadius: 12,
+                padding: 20,
+                textAlign: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                transform: isSelected ? 'translateY(-2px)' : 'translateY(0)',
               }}
-              onMouseLeave={e => {
-                if (selectedCharacter?.id !== character.id) {
-                  (e.currentTarget as HTMLDivElement).style.borderColor = '#2a2a4e';
-                  (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
-                }
-              }}
-            >
-              <div style={{ width: 120, height: 120, margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <img
-                  src={character.image}
-                  alt={character.name}
-                  style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'pixelated' }}
-                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; (e.currentTarget.nextSibling as HTMLElement).style.display = 'block'; }}
-                />
-                
-              </div>
-              <h3 style={{ color: '#fff', fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
-                {character.name}
-              </h3>
-              <div style={{ color: '#a78bfa', fontSize: 14, marginBottom: 8 }}>
-                {getElementEmoji(character.element)} {getElementName(character.element)} 속성
-              </div>
-              <p style={{ color: '#9ca3af', fontSize: 14, lineHeight: 1.4, marginBottom: 16 }}>
-                {character.description}
-              </p>
+                onClick={() => setSelectedCharacter(isSelected ? null : character)}
+                onMouseEnter={e => {
+                  if (!isSelected) {
+                    (e.currentTarget as HTMLDivElement).style.borderColor = '#4a4a6e';
+                    (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-1px)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!isSelected) {
+                    (e.currentTarget as HTMLDivElement).style.borderColor = '#2a2a4e';
+                    (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
+                  }
+                }}
+              >
+                <div style={{ width: 120, height: 120, margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <img
+                    src={character.image}
+                    alt={character.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'pixelated' }}
+                    onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; (e.currentTarget.nextSibling as HTMLElement).style.display = 'block'; }}
+                  />
+                </div>
+                <h3 style={{ color: '#fff', fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
+                  {character.name}
+                </h3>
+                <div style={{ color: '#a78bfa', fontSize: 14, marginBottom: 8 }}>
+                  {getElementEmoji(character.element)} {getElementName(character.element)} 속성
+                </div>
+                <p style={{ color: '#9ca3af', fontSize: 14, lineHeight: 1.4, marginBottom: 16 }}>
+                  {character.description}
+                </p>
 
-              {/* 스탯 정보 */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
-                gap: 8,
-                background: 'rgba(0,0,0,0.3)',
-                padding: 12,
-                borderRadius: 8,
-              }}>
-                <div style={{ color: '#ef4444', fontSize: 12 }}>
-                  <span>❤️ HP: {character.stats.hp}</span>
-                </div>
-                <div style={{ color: '#3b82f6', fontSize: 12 }}>
-                  <span>💧 MP: {character.stats.mp}</span>
-                </div>
-                <div style={{ color: '#f59e0b', fontSize: 12 }}>
-                  <span>⚔️ 공격: {character.stats.attack}</span>
-                </div>
-                <div style={{ color: '#22c55e', fontSize: 12 }}>
-                  <span>🛡️ 방어: {character.stats.defense}</span>
-                </div>
-              </div>
-
-              {selectedCharacter?.id === character.id && (
+                {/* 스탯 정보 */}
                 <div style={{
-                  color: '#6366f1',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  marginTop: 8,
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 8,
+                  background: 'rgba(0,0,0,0.3)',
+                  padding: 12,
+                  borderRadius: 8,
                 }}>
-                  ✓ 선택됨
+                  <div style={{ color: '#ef4444', fontSize: 12 }}>
+                    <span>❤️ HP: {character.stats.hp}</span>
+                  </div>
+                  <div style={{ color: '#3b82f6', fontSize: 12 }}>
+                    <span>💧 MP: {character.stats.mp}</span>
+                  </div>
+                  <div style={{ color: '#f59e0b', fontSize: 12 }}>
+                    <span>⚔️ 공격: {character.stats.attack}</span>
+                  </div>
+                  <div style={{ color: '#22c55e', fontSize: 12 }}>
+                    <span>🛡️ 방어: {character.stats.defense}</span>
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
-        </div>
 
-        {/* 시작 버튼 */}
-        <button
-          onClick={startGame}
-          disabled={!selectedCharacter}
-          style={{
-            background: selectedCharacter
-              ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
-              : '#374151',
-            color: selectedCharacter ? '#fff' : '#6b7280',
-            border: 'none',
-            borderRadius: 12,
-            padding: '16px 48px',
-            fontSize: 18,
-            fontWeight: 700,
-            cursor: selectedCharacter ? 'pointer' : 'not-allowed',
-            transition: 'all 0.2s',
-            transform: selectedCharacter ? 'scale(1)' : 'scale(0.95)',
-          }}
-          onMouseEnter={e => {
-            if (selectedCharacter) {
-              (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.05)';
-            }
-          }}
-          onMouseLeave={e => {
-            if (selectedCharacter) {
-              (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
-            }
-          }}
-        >
-          🚀 모험 시작하기
-        </button>
+                {/* 선택 오버레이 */}
+                {isSelected && (
+                  <div style={{
+                    position: 'absolute',
+                    inset: 0,
+                    borderRadius: 12,
+                    background: 'rgba(10, 10, 20, 0.82)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 12,
+                    backdropFilter: 'blur(2px)',
+                  }}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <div style={{ color: '#c4b5fd', fontSize: 18, fontWeight: 700 }}>
+                      {character.name}
+                    </div>
+                    <button
+                      onClick={startGame}
+                      style={{
+                        background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 10,
+                        padding: '12px 36px',
+                        fontSize: 16,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'transform 0.15s',
+                        boxShadow: '0 0 16px rgba(99, 102, 241, 0.5)',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.06)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)'; }}
+                    >
+                       모험 시작하기
+                    </button>
+                    <span style={{ color: '#6b7280', fontSize: 12 }}>다른 캐릭터를 선택하려면 클릭</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
+    </>
   );
 }

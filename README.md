@@ -50,6 +50,11 @@ npm run dev   # 개발 서버 실행
     클로드 사용하여 수정된 소스를 git에 push하도록 함
 
 ### 환경구성
+#### claude code안에서 실행
+    ```
+    /plugin marketplace add https://github.com/affaan-m/everythin-claude-code
+    /plugin install ecc@ecc
+    ```
 #### firebase 호스팅 설정
     1. firebase cli 설치
     ```

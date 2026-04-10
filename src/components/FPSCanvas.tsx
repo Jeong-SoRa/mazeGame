@@ -347,8 +347,8 @@ export default function FPSCanvas() {
 
       const isRepeat = lastKeyRef.current[e.key];
 
-      // 전투 중 키 처리 (전투 모달 열려 있을 때만 활성화)
-      if (activeModalRef.current === 'combat') {
+      // 전투 중 키 처리
+      if (stateRef.current.combatState !== null) {
         if (!isRepeat && e.key === ' ') {
           dispatch({ type: 'COMBAT_ATTACK' });
           addActionLog('공격했다.', 'combat');
@@ -356,6 +356,20 @@ export default function FPSCanvas() {
         if (!isRepeat && (e.key === 'z' || e.key === 'Z')) {
           dispatch({ type: 'COMBAT_FLEE' });
           addActionLog('도망을 시도했다.', 'combat');
+        }
+        lastKeyRef.current[e.key] = true;
+        return;
+      }
+
+      // 보물상자 중 키 처리
+      if (stateRef.current.chestState !== null) {
+        if (!isRepeat && e.key === ' ') {
+          dispatch({ type: 'CHEST_TAKE_ALL' });
+          addActionLog('보물상자를 열었다.', 'item');
+        }
+        if (!isRepeat && (e.key === 'z' || e.key === 'Z')) {
+          dispatch({ type: 'CHEST_CLOSE' });
+          addActionLog('상자를 그냥 지나쳤다.', 'item');
         }
         lastKeyRef.current[e.key] = true;
         return;
@@ -564,6 +578,7 @@ export default function FPSCanvas() {
   // ── 터치 핸들러 ───────────────────────────────────────────────────────────
   function handleTouchMove(direction: 'forward' | 'backward') {
     if (activeModalRef.current !== null) return;
+    if (stateRef.current.combatState !== null) return;
 
     // 회전 버튼과 동일한 각도 사용
     const currentAngle = targetAngleRef.current;
@@ -606,6 +621,7 @@ export default function FPSCanvas() {
       console.log('Modal is open, ignoring touch rotate');
       return;
     }
+    if (stateRef.current.combatState !== null) return;
 
     console.log(`=== Touch rotate: ${direction} ===`);
     targetAngleRef.current += direction === 'left' ? -Math.PI / 2 : Math.PI / 2;
@@ -792,73 +808,6 @@ export default function FPSCanvas() {
           background:'rgba(0,0,0,0.75)',
         }} />
 
-        {/* 전투 인라인 UI */}
-        {combatState && (
-          <div style={{
-            position: 'absolute',
-            top: '10px',
-            left: '10px',
-            background: 'rgba(17,24,39,0.95)',
-            border: '1px solid #dc2626',
-            borderRadius: 8,
-            padding: 12,
-            minWidth: 250,
-            zIndex: 10,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-              <span style={{ fontSize: 24 }}>{combatState.monster.emoji}</span>
-              <div style={{ flex: 1 }}>
-                <h4 style={{ color: '#f87171', margin: 0, fontSize: 14 }}>{combatState.monster.name}</h4>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                  <div style={{ width: 100, height: 6, background: '#374151', borderRadius: 3 }}>
-                    <div style={{
-                      width: `${(combatState.monster.currentHp / combatState.monster.maxHp) * 100}%`,
-                      height: '100%',
-                      background: '#ef4444',
-                      borderRadius: 3,
-                    }} />
-                  </div>
-                  <span style={{ fontSize: 10, color: '#f87171' }}>
-                    {combatState.monster.currentHp}/{combatState.monster.maxHp}
-                  </span>
-                </div>
-              </div>
-            </div>
-            {combatState.phase === 'player-turn' && (
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button
-                  onClick={() => dispatch({ type: 'COMBAT_ATTACK' })}
-                  style={{
-                    background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: 4,
-                    padding: '6px 10px',
-                    fontSize: 10,
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                  }}
-                >
-                  ⚔️ 공격
-                </button>
-                <button
-                  onClick={() => dispatch({ type: 'COMBAT_FLEE' })}
-                  style={{
-                    background: '#374151',
-                    color: '#d1d5db',
-                    border: '1px solid #6b7280',
-                    borderRadius: 4,
-                    padding: '6px 10px',
-                    fontSize: 10,
-                    cursor: 'pointer',
-                  }}
-                >
-                  🏃 도망
-                </button>
-              </div>
-            )}
-          </div>
-        )}
 
         {/* 보물상자 인라인 UI */}
         {chestState && (
@@ -1159,34 +1108,47 @@ export default function FPSCanvas() {
                 >→(D)</button>
               </div>
 
-              {/* 오른쪽: 공격/도망 버튼 */}
-              <div style={{ 
+              {/* 오른쪽: 공격/열기 · 도망/떠나기 버튼 */}
+              <div style={{
                 padding: '0 0 0 12px',
                 display:'flex', flexDirection:'column', gap:15 }}>
                 <button
-                  disabled={activeModal !== 'combat'}
-                  onClick={() => dispatch({ type:'COMBAT_ATTACK' })}
+                  disabled={!combatState && !chestState}
+                  onClick={() => {
+                    if (combatState) dispatch({ type:'COMBAT_ATTACK' });
+                    else if (chestState) dispatch({ type:'CHEST_TAKE_ALL' });
+                  }}
                   style={{
-                    background: activeModal === 'combat' ? 'rgba(127,29,29,0.85)' : 'rgba(55,65,81,0.6)',
-                    border: `1px solid ${activeModal === 'combat' ? '#ef4444' : '#4b5563'}`,
-                    color: activeModal === 'combat' ? '#fca5a5' : '#6b7280',
+                    background: combatState ? 'rgba(127,29,29,0.85)' : chestState ? 'rgba(146,64,14,0.85)' : 'rgba(55,65,81,0.6)',
+                    border: `1px solid ${combatState ? '#ef4444' : chestState ? '#f59e0b' : '#4b5563'}`,
+                    color: combatState ? '#fca5a5' : chestState ? '#fde68a' : '#6b7280',
                     fontSize:12, borderRadius:6, padding:'10px 10px',
-                    cursor: activeModal === 'combat' ? 'pointer' : 'not-allowed',
+                    cursor: (combatState || chestState) ? 'pointer' : 'not-allowed',
                     userSelect:'none', touchAction:'manipulation', fontWeight:'bold',
-                    opacity: activeModal === 'combat' ? 1 : 0.5,
-                  }}>공격(space)</button>
+                    opacity: (combatState || chestState) ? 1 : 0.5,
+                  }}>{chestState ? '열기(space)' : '공격(space)'}</button>
                 <button
-                  disabled={activeModal !== 'combat'}
-                  onClick={() => dispatch({ type:'COMBAT_FLEE' })}
+                  disabled={!combatState && !chestState}
+                  onClick={() => {
+                    if (combatState) dispatch({ type:'COMBAT_FLEE' });
+                    else if (chestState) dispatch({ type:'CHEST_CLOSE' });
+                  }}
                   style={{
-                    background: activeModal === 'combat' ? 'rgba(20,83,45,0.85)' : 'rgba(55,65,81,0.6)',
-                    border: `1px solid ${activeModal === 'combat' ? '#22c55e' : '#4b5563'}`,
-                    color: activeModal === 'combat' ? '#86efac' : '#6b7280',
+                    background: combatState ? 'rgba(20,83,45,0.85)' : chestState ? 'rgba(30,41,59,0.85)' : 'rgba(55,65,81,0.6)',
+                    border: `1px solid ${combatState ? '#22c55e' : chestState ? '#60a5fa' : '#4b5563'}`,
+                    color: combatState ? '#86efac' : chestState ? '#bfdbfe' : '#6b7280',
                     fontSize:12, borderRadius:6, padding:'10px 10px',
-                    cursor: activeModal === 'combat' ? 'pointer' : 'not-allowed',
+                    cursor: (combatState || chestState) ? 'pointer' : 'not-allowed',
                     userSelect:'none', touchAction:'manipulation', fontWeight:'bold',
-                    opacity: activeModal === 'combat' ? 1 : 0.5,
-                  }}>도망(Z)</button>
+                    opacity: (combatState || chestState) ? 1 : 0.5,
+                  }}>
+                  {chestState ? '떠나기(Z)' : '도망(Z)'}
+                  {combatState && (
+                    <span style={{ fontSize:9, fontWeight:'normal', color:'#f87171', marginLeft:3 }}>
+                      {Math.round(Math.max(0.25, 0.55 - stage * 0.01) * 100)}%
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
           </div>

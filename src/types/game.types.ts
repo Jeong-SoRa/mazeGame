@@ -115,6 +115,7 @@ export interface GameState {
   chests: Record<string, ChestInstance>;
   player: PlayerState;
   steps: number;
+  optimalSteps: number; // 해당 미로의 최소 이동수
   startTime: number;
   elapsedSeconds: number;
   activeModal: ActiveModal;

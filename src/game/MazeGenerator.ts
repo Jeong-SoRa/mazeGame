@@ -77,6 +77,60 @@ function getOpenCells(maze: CellType[][], excludes: string[]): Position[] {
   return positions;
 }
 
+// BFS로 최단 경로 계산
+function calculateOptimalSteps(
+  maze: CellType[][],
+  start: Position,
+  end: Position
+): number {
+  const mazeSize = maze.length;
+  const visited = new Set<string>();
+  const queue: Array<{ pos: Position; steps: number }> = [];
+
+  queue.push({ pos: start, steps: 0 });
+  visited.add(`${start.x},${start.y}`);
+
+  const directions = [
+    { dx: 0, dy: -1 }, // 위
+    { dx: 0, dy: 1 },  // 아래
+    { dx: -1, dy: 0 }, // 왼쪽
+    { dx: 1, dy: 0 },  // 오른쪽
+  ];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+
+    // 목표 지점 도달
+    if (current.pos.x === end.x && current.pos.y === end.y) {
+      return current.steps;
+    }
+
+    // 인접한 칸들 확인
+    for (const dir of directions) {
+      const newX = current.pos.x + dir.dx;
+      const newY = current.pos.y + dir.dy;
+      const key = `${newX},${newY}`;
+
+      // 유효한 범위 내이고, 길이며, 방문하지 않은 칸
+      if (
+        newX >= 0 && newX < mazeSize &&
+        newY >= 0 && newY < mazeSize &&
+        maze[newY][newX] === 1 &&
+        !visited.has(key)
+      ) {
+        visited.add(key);
+        queue.push({
+          pos: { x: newX, y: newY },
+          steps: current.steps + 1
+        });
+      }
+    }
+  }
+
+  // 경로를 찾을 수 없는 경우 (이론적으로는 발생하지 않아야 함)
+  return -1;
+}
+
 // 보물상자 내용물 생성 (스테이지 기반, 시드 기반)
 function generateChestItems(stage: number, rng: SeededRandom): string[] {
   const itemPool: string[][] = [
@@ -109,6 +163,7 @@ export interface GeneratedMap {
   exitPos: Position;
   monsters: Record<string, MonsterInstance>;
   chests: Record<string, ChestInstance>;
+  optimalSteps: number; // 최소 이동수
 }
 
 // 전체 맵 생성 (스테이지별 고정 시드 사용)
@@ -153,5 +208,8 @@ export function generateMap(stage: number): GeneratedMap {
     chests[key] = { items: generateChestItems(stage, rng), opened: false };
   }
 
-  return { maze, mazeSize, playerPos, exitPos, monsters, chests };
+  // 최단 경로 계산
+  const optimalSteps = calculateOptimalSteps(maze, playerPos, exitPos);
+
+  return { maze, mazeSize, playerPos, exitPos, monsters, chests, optimalSteps };
 }

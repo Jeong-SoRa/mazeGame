@@ -17,8 +17,20 @@ function formatTime(seconds: number): string {
 
 export default function StageClear({ user }: Props) {
   const { state, dispatch } = useGame();
-  const { stage, steps, completionTime, maxClearedStage } = state;
+  const { stage, steps, optimalSteps, completionTime, maxClearedStage } = state;
   const time = completionTime ?? 0;
+
+  // 효율성 계산
+  const efficiency = optimalSteps > 0 ? Math.round((optimalSteps / steps) * 100) : 100;
+  const getEfficiencyGrade = (eff: number) => {
+    if (eff === 100) return { grade: 'S+', color: '#22c55e', emoji: '🏆' };
+    if (eff >= 95) return { grade: 'S', color: '#22c55e', emoji: '⭐' };
+    if (eff >= 85) return { grade: 'A', color: '#3b82f6', emoji: '✨' };
+    if (eff >= 75) return { grade: 'B', color: '#f59e0b', emoji: '👍' };
+    if (eff >= 65) return { grade: 'C', color: '#f97316', emoji: '👌' };
+    return { grade: 'D', color: '#ef4444', emoji: '😅' };
+  };
+  const { grade, color, emoji } = getEfficiencyGrade(efficiency);
 
   const [saved, setSaved] = useState(false);
   const [myBest, setMyBest] = useState<RankingEntry | null>(null);
@@ -80,11 +92,28 @@ export default function StageClear({ user }: Props) {
       }}>
         <div>
           <div style={{ color: '#9ca3af', fontSize: 13 }}>이동 수</div>
-          <div style={{ color: '#fbbf24', fontSize: 32, fontWeight: 800 }}>{steps}</div>
+          <div style={{ color: '#fbbf24', fontSize: 32, fontWeight: 800 }}>
+            {steps}
+            <span style={{ fontSize: 14, color: '#9ca3af' }}>/{optimalSteps}</span>
+          </div>
+          {steps > optimalSteps && (
+            <div style={{ fontSize: 11, color: '#f97316' }}>
+              +{steps - optimalSteps} 추가 이동
+            </div>
+          )}
         </div>
         <div>
           <div style={{ color: '#9ca3af', fontSize: 13 }}>클리어 시간</div>
           <div style={{ color: '#67e8f9', fontSize: 32, fontWeight: 800 }}>{formatTime(time)}</div>
+        </div>
+        <div>
+          <div style={{ color: '#9ca3af', fontSize: 13 }}>효율성</div>
+          <div style={{ color, fontSize: 32, fontWeight: 800 }}>
+            {emoji} {grade}
+          </div>
+          <div style={{ fontSize: 11, color: '#9ca3af' }}>
+            {efficiency}% 효율
+          </div>
         </div>
       </div>
 

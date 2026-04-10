@@ -9,7 +9,7 @@ function formatTime(seconds: number): string {
 
 export default function HUD() {
   const { state, dispatch } = useGame();
-  const { player, steps, elapsedSeconds, stage, exitPos, mazeSize, message } = state;
+  const { player, steps, optimalSteps, elapsedSeconds, stage, exitPos, mazeSize, message } = state;
 
   const hp = player.hp;
   const maxHp = player.maxHp;
@@ -68,7 +68,10 @@ export default function HUD() {
       {/* 스텝 & 시간 */}
       <div style={{ display: 'flex', gap: 12 }}>
         <span style={{ color: '#9ca3af', fontSize: 12 }}>
-          👣 <b style={{ color: '#fff' }}>{steps}</b>
+          👣 <b style={{ color: steps <= optimalSteps ? '#22c55e' : steps <= optimalSteps + 5 ? '#f59e0b' : '#ef4444' }}>
+            {steps}
+          </b>
+          <span style={{ color: '#6b7280', fontSize: 10 }}>/{optimalSteps}</span>
         </span>
         <span style={{ color: '#9ca3af', fontSize: 12 }}>
           ⏱ <b style={{ color: '#fff' }}>{formatTime(elapsedSeconds)}</b>
@@ -137,7 +140,12 @@ export default function HUD() {
 
       {/* 마지막 크기 */}
       <div style={{ color: '#6b7280', fontSize: 10, width: '100%' }}>
-        미로 크기: {mazeSize}×{mazeSize} | 아이템: {player.inventory.length}/{capacity}개 {invFull && <span style={{ color: '#ef4444' }}>가득 참!</span>}
+        미로 크기: {mazeSize}×{mazeSize} | 아이템: {player.inventory.length}/{capacity}개
+        {invFull && <span style={{ color: '#ef4444' }}>가득 참!</span>} |
+        최적 이동수: <span style={{ color: '#22c55e' }}>{optimalSteps}</span>
+        {steps > optimalSteps && (
+          <span style={{ color: '#f59e0b' }}> (+{steps - optimalSteps})</span>
+        )}
       </div>
 
       {/* 메시지 */}

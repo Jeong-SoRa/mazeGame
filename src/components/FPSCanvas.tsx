@@ -43,7 +43,7 @@ export default function FPSCanvas() {
   const { state, dispatch } = useGame();
   const {
     maze, mazeSize, playerPos,
-    player, steps, elapsedSeconds, stage,
+    player, steps, optimalSteps, elapsedSeconds, stage,
     activeModal,
   } = state;
 
@@ -690,7 +690,10 @@ export default function FPSCanvas() {
 
           {/* 정보 줄 - 모바일에서는 간소화 */}
           <div style={{ display:'flex', gap:8, flexWrap:'wrap', color:'#9ca3af', fontSize:10 }}>
-            <span>👣 <b style={{ color:'#e5e7eb' }}>{steps}</b></span>
+            <span>👣 <b style={{
+              color: steps <= optimalSteps ? '#22c55e' :
+                     steps <= optimalSteps + 5 ? '#f59e0b' : '#ef4444'
+            }}>{steps}</b>/<span style={{ color:'#86efac' }}>{optimalSteps}</span></span>
             <span>⏱ <b style={{ color:'#e5e7eb' }}>{formatTime(elapsedSeconds)}</b></span>
             <span>🗺 Stage <b style={{ color:'#a78bfa' }}>{stage}</b></span>
             <span>{getElementEmoji(player.element)} <b style={{ color:'#a78bfa' }}>{getElementName(player.element)}</b></span>

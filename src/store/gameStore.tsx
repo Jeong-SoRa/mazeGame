@@ -45,6 +45,7 @@ const initialState: GameState = {
   chests: {},
   player: createInitialPlayer(),
   steps: 0,
+  optimalSteps: 0,
   startTime: 0,
   elapsedSeconds: 0,
   activeModal: null,

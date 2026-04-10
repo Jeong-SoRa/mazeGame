@@ -103,6 +103,17 @@ export default function HUD() {
       {/* 버튼들 */}
       <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
         <button
+          onClick={() => dispatch({ type: 'REST' })}
+          title="HP/MP 완전 회복 (+30초, +2이동)"
+          style={{
+            background: '#1e293b', border: '1px solid #22c55e',
+            color: '#86efac', padding: '4px 10px', borderRadius: 6,
+            fontSize: 12, cursor: 'pointer',
+          }}
+        >
+          💤 휴식
+        </button>
+        <button
           onClick={() => dispatch({ type: 'SET_MODAL', modal: 'crafting' })}
           style={{
             background: '#1e293b', border: '1px solid #4338ca',

@@ -838,7 +838,16 @@ export default function FPSCanvas() {
         <div style={{ flex:1, overflowY:'auto', padding:16, display:'flex', flexDirection:'column', gap:8 }}>
           {renderInvItems()}
         </div>
-        <div style={{ padding:'12px 16px', borderTop:'1px solid #334155' }}>
+        <div style={{ padding:'12px 16px', borderTop:'1px solid #334155', display:'flex', flexDirection:'column', gap:8 }}>
+          <button
+            onClick={() => dispatch({ type:'REST' })}
+            title="HP/MP 완전 회복 (+30초, +2이동)"
+            style={{
+              width:'100%', background:'#0f2a1a', border:'1px solid #22c55e',
+              color:'#86efac', padding:'10px', borderRadius:8, fontSize:13, cursor:'pointer',
+            }}>
+            💤 휴식 (HP/MP 회복, +30초 +2이동)
+          </button>
           <button
             onClick={() => dispatch({ type:'SET_MODAL', modal:'crafting' })}
             style={{

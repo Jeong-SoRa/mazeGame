@@ -153,6 +153,7 @@ export type GameAction =
   | { type: 'USE_ITEM'; itemIndex: number }
   | { type: 'DROP_ITEM'; itemIndex: number }
   | { type: 'DISCARD_SKIP'; pendingIndex: number }
+  | { type: 'REST' }
   | { type: 'SET_MODAL'; modal: ActiveModal }
   | { type: 'TICK' }
   | { type: 'CLEAR_MESSAGE' }

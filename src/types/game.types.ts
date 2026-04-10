@@ -17,6 +17,7 @@ export interface Item {
   attack?: number;
   defense?: number;
   heal?: number;
+  capacity?: number; // 가방 용량 증가 (주머니)
   description: string;
   rarity: Rarity;
   element?: Element; // 속성 (무기, 방어구에만 적용)
@@ -74,8 +75,6 @@ export interface PlayerState {
   baseAttack: number;
   baseDefense: number;
   inventory: Item[];
-  equippedWeaponId: string | null;
-  equippedArmorId: string | null;
   element: Element; // 플레이어 속성
 }
 
@@ -96,8 +95,12 @@ export interface ChestOpenState {
   items: Item[];
 }
 
+export interface DiscardState {
+  pendingItems: Item[];
+}
+
 export type GameScreen = 'character-select' | 'playing' | 'stage-clear' | 'game-over';
-export type ActiveModal = 'combat' | 'chest' | 'crafting' | 'ranking' | null;
+export type ActiveModal = 'combat' | 'chest' | 'crafting' | 'ranking' | 'discard' | null;
 
 export interface GameState {
   screen: GameScreen;
@@ -117,6 +120,7 @@ export interface GameState {
   activeModal: ActiveModal;
   combatState: CombatState | null;
   chestState: ChestOpenState | null;
+  discardState: DiscardState | null;
   craftResult: { success: boolean; item: Item | null; message: string } | null;
   selectedCraftItems: number[];
   message: string | null;
@@ -146,8 +150,9 @@ export type GameAction =
   | { type: 'TOGGLE_CRAFT_ITEM'; inventoryIndex: number }
   | { type: 'CRAFT_ITEMS' }
   | { type: 'CLEAR_CRAFT_RESULT' }
-  | { type: 'EQUIP_ITEM'; itemIndex: number }
   | { type: 'USE_ITEM'; itemIndex: number }
+  | { type: 'DROP_ITEM'; itemIndex: number }
+  | { type: 'DISCARD_SKIP'; pendingIndex: number }
   | { type: 'SET_MODAL'; modal: ActiveModal }
   | { type: 'TICK' }
   | { type: 'CLEAR_MESSAGE' }

@@ -3,6 +3,7 @@ import FPSCanvas from './FPSCanvas';
 import CombatModal from './CombatModal';
 import ChestModal from './ChestModal';
 import CraftingModal from './CraftingModal';
+import DiscardModal from './DiscardModal';
 
 export default function GameView() {
   const { state } = useGame();
@@ -17,6 +18,7 @@ export default function GameView() {
       {activeModal === 'combat'   && <CombatModal />}
       {activeModal === 'chest'    && <ChestModal />}
       {activeModal === 'crafting' && <CraftingModal />}
+      {activeModal === 'discard'  && <DiscardModal />}
     </div>
   );
 }

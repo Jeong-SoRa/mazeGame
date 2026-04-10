@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useGame } from '../store/gameStore';
-import { getPlayerAttack, getPlayerDefense } from '../game/CombatSystem';
+import { getPlayerAttack, getPlayerDefense, getInventoryCapacity } from '../game/CombatSystem';
 import { getElementEmoji, getElementName } from '../game/ElementSystem';
 import type { Item } from '../types/game.types';
 
@@ -452,46 +452,45 @@ export default function FPSCanvas() {
   // ── 인벤토리 아이템 렌더 ──────────────────────────────────────────────────
   function renderInvItems() {
     const inv = player.inventory;
+    const capacity = getInventoryCapacity(player);
     if (inv.length === 0) return (
       <div style={{ color:'#4b5563', fontSize:12, textAlign:'center', paddingTop:20 }}>
         아이템 없음
       </div>
     );
     return inv.map((item: Item, i: number) => {
-      const isEquip = item.type === 'weapon' || item.type === 'armor';
-      const isUsable = item.type === 'potion' || item.type === 'special';
-      const isEquipped = item.id === player.equippedWeaponId || item.id === player.equippedArmorId;
+      const isUsable = item.type === 'potion' || (item.type === 'special' && !item.capacity);
       const spec = item.type === 'weapon' ? `⚔️ +${item.attack}`
                  : item.type === 'armor'  ? `🛡️ +${item.defense}`
                  : item.type === 'potion' ? `❤️ +${item.heal}`
-                 : item.description;
+                 : item.capacity          ? `🎒 +${item.capacity}칸`
+                 : item.description.slice(0, 12);
+      void capacity;
       return (
         <div key={i} style={{
-          background:'#1e293b', border:`1px solid ${isEquipped ? '#6366f1' : '#374151'}`,
+          background:'#1e293b', border:'1px solid #374151',
           borderRadius:6, padding:'6px 8px',
           display:'flex', alignItems:'center', gap:7, fontSize:12, color:'#d1d5db',
         }}>
           <span style={{ fontSize:18, flexShrink:0 }}>{item.emoji}</span>
           <div style={{ flex:1, display:'flex', flexDirection:'column', gap:1, minWidth:0 }}>
             <span style={{ fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-              {item.name} {isEquipped && <span style={{ color:'#818cf8', fontSize:10 }}>착용</span>}
+              {item.name}
             </span>
             <span style={{ color:'#86efac', fontSize:10 }}>{spec}</span>
           </div>
-          {isEquip && (
-            <button onClick={() => dispatch({ type:'EQUIP_ITEM', itemIndex:i })}
-              style={{ padding:'2px 6px', background:'#1e3a5f', border:'1px solid #6366f1',
-                color:'#a5b4fc', borderRadius:4, fontSize:10, cursor:'pointer' }}>
-              {isEquipped ? '해제' : '장착'}
-            </button>
-          )}
           {isUsable && (
             <button onClick={() => dispatch({ type:'USE_ITEM', itemIndex:i })}
-              style={{ padding:'2px 6px', background:'#14532d', border:'1px solid #4ade80',
+              style={{ padding:'2px 5px', background:'#14532d', border:'1px solid #4ade80',
                 color:'#86efac', borderRadius:4, fontSize:10, cursor:'pointer' }}>
               사용
             </button>
           )}
+          <button onClick={() => dispatch({ type:'DROP_ITEM', itemIndex:i })}
+            style={{ padding:'2px 5px', background:'#450a0a', border:'1px solid #dc2626',
+              color:'#fca5a5', borderRadius:4, fontSize:10, cursor:'pointer' }}>
+            버리기
+          </button>
         </div>
       );
     });
@@ -826,7 +825,7 @@ export default function FPSCanvas() {
           padding:'12px 16px', borderBottom:'1px solid #334155',
           color:'#7dd3fc', fontSize:16, fontWeight:'bold',
         }}>
-          <span>🎒 인벤토리 ({player.inventory.length})</span>
+          <span>🎒 인벤토리 ({player.inventory.length}/{getInventoryCapacity(player)})</span>
           <button
             onClick={() => {
               const panel = document.getElementById('fps-inv-panel');

@@ -1,6 +1,5 @@
 import { useGame } from '../store/gameStore';
-import { getPlayerAttack, getPlayerDefense } from '../game/CombatSystem';
-import { ITEMS } from '../game/ItemDatabase';
+import { getPlayerAttack, getPlayerDefense, getInventoryCapacity } from '../game/CombatSystem';
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -22,9 +21,8 @@ export default function HUD() {
 
   const atk = getPlayerAttack(player);
   const def = getPlayerDefense(player);
-
-  const weapon = player.equippedWeaponId ? ITEMS[player.equippedWeaponId] : null;
-  const armor = player.equippedArmorId ? ITEMS[player.equippedArmorId] : null;
+  const capacity = getInventoryCapacity(player);
+  const invFull = player.inventory.length >= capacity;
 
   return (
     <div style={{
@@ -92,22 +90,14 @@ export default function HUD() {
         <span style={{ color: '#93c5fd', fontSize: 12 }}>🛡️ {def}</span>
       </div>
 
-      {/* 장착 아이템 */}
-      <div style={{ display: 'flex', gap: 8 }}>
-        <div style={{
-          background: weapon ? '#1e293b' : '#111827',
-          border: `1px solid ${weapon ? '#6366f1' : '#374151'}`,
-          borderRadius: 6, padding: '2px 8px', fontSize: 12, color: '#d1d5db',
-        }}>
-          {weapon ? `${weapon.emoji} ${weapon.name}` : '⚔️ 맨손'}
-        </div>
-        <div style={{
-          background: armor ? '#1e293b' : '#111827',
-          border: `1px solid ${armor ? '#6366f1' : '#374151'}`,
-          borderRadius: 6, padding: '2px 8px', fontSize: 12, color: '#d1d5db',
-        }}>
-          {armor ? `${armor.emoji} ${armor.name}` : '🛡️ 없음'}
-        </div>
+      {/* 가방 용량 */}
+      <div style={{
+        background: invFull ? '#450a0a' : '#1e293b',
+        border: `1px solid ${invFull ? '#dc2626' : '#374151'}`,
+        borderRadius: 6, padding: '2px 8px', fontSize: 12,
+        color: invFull ? '#fca5a5' : '#d1d5db',
+      }}>
+        🎒 {player.inventory.length}/{capacity}
       </div>
 
       {/* 버튼들 */}
@@ -136,7 +126,7 @@ export default function HUD() {
 
       {/* 마지막 크기 */}
       <div style={{ color: '#6b7280', fontSize: 10, width: '100%' }}>
-        미로 크기: {mazeSize}×{mazeSize} | 아이템: {player.inventory.length}개
+        미로 크기: {mazeSize}×{mazeSize} | 아이템: {player.inventory.length}/{capacity}개 {invFull && <span style={{ color: '#ef4444' }}>가득 참!</span>}
       </div>
 
       {/* 메시지 */}

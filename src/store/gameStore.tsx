@@ -2,7 +2,7 @@ import React, { createContext, useContext, useReducer, useEffect, useRef } from 
 import type { GameState, GameAction, PlayerState, CombatState, Character } from '../types/game.types';
 import { generateMap } from '../game/MazeGenerator';
 import { ITEMS, craftItems } from '../game/ItemDatabase';
-import { doPlayerAttack, usePotion, tryFlee, calculateDrops } from '../game/CombatSystem';
+import { doPlayerAttack, usePotion, tryFlee, calculateDrops, getPlayerDefense, getInventoryCapacity } from '../game/CombatSystem';
 
 // ─── 초기 플레이어 ───────────────────────────────────────────────────────────
 function createInitialPlayer(character?: Character): PlayerState {
@@ -15,8 +15,6 @@ function createInitialPlayer(character?: Character): PlayerState {
       baseAttack: character.stats.attack,
       baseDefense: character.stats.defense,
       inventory: [],
-      equippedWeaponId: null,
-      equippedArmorId: null,
       element: character.element,
     };
   }
@@ -29,8 +27,6 @@ function createInitialPlayer(character?: Character): PlayerState {
     baseAttack: 6,
     baseDefense: 2,
     inventory: [],
-    equippedWeaponId: null,
-    equippedArmorId: null,
     element: 'wind', // 기본 속성
   };
 }
@@ -54,6 +50,7 @@ const initialState: GameState = {
   activeModal: null,
   combatState: null,
   chestState: null,
+  discardState: null,
   craftResult: null,
   selectedCraftItems: [],
   message: null,
@@ -90,6 +87,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         startTime: Date.now(),
         elapsedSeconds: 0,
         mapRevealTimer: 0,
+        discardState: null,
       };
     }
 
@@ -185,11 +183,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (result.monsterDied) {
         // 드랍 계산
         const drops = calculateDrops(state.combatState.monster);
+        const capacity = getInventoryCapacity(state.player);
+        const canAdd = Math.max(0, capacity - state.player.inventory.length);
+        const toAdd = drops.slice(0, canAdd);
+        const pending = drops.slice(canAdd);
+
         const dropLogs = drops.length > 0
           ? [{ text: `🎁 획득: ${drops.map(i => i.emoji + i.name).join(', ')}`, type: 'system' as const }]
           : [{ text: '아이템이 드랍되지 않았습니다.', type: 'system' as const }];
 
-        const newInventory = [...state.player.inventory, ...drops];
+        const newInventory = [...state.player.inventory, ...toAdd];
         const monsterKey = state.combatState.monsterKey;
         const newMonsters = { ...state.monsters };
         delete newMonsters[monsterKey];
@@ -222,10 +225,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           playerPos: { x: mx, y: my },
           steps: state.steps + 1,
           visitedCells: newVisited,
+          discardState: pending.length > 0 ? { pendingItems: pending } : null,
           combatState: {
             ...state.combatState,
             monster: { ...state.combatState.monster, currentHp: 0 },
-            log: [...newLogs, ...dropLogs],
+            log: [...newLogs, ...dropLogs, ...(pending.length > 0 ? [{ text: `⚠️ 가방이 가득 찼습니다! ${pending.length}개의 아이템을 버려야 합니다.`, type: 'system' as const }] : [])],
             phase: 'player-won',
           },
         };
@@ -291,7 +295,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       } else {
         // 도망 실패 → 몬스터 공격
         const mAtk = state.combatState.monster.attack;
-        const pDef = Math.max(0, state.player.baseDefense + (state.player.equippedArmorId ? (ITEMS[state.player.equippedArmorId]?.defense ?? 0) : 0));
+        const pDef = getPlayerDefense(state.player);
         const dmg = Math.max(1, mAtk - pDef + Math.floor(Math.random() * 3));
         const newHp = Math.max(0, state.player.hp - dmg);
         const fled_log = { text: `도망 실패! ${state.combatState.monster.name}의 공격! ${dmg} 데미지.`, type: 'monster' as const };
@@ -325,6 +329,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const phase = state.combatState.phase;
 
       if (phase === 'player-won' || phase === 'fled') {
+        // 가방이 가득 찼으면 버리기 모달로 전환
+        if (state.discardState && state.discardState.pendingItems.length > 0) {
+          return { ...state, activeModal: 'discard', combatState: null };
+        }
         return { ...state, activeModal: null, combatState: null };
       }
       if (phase === 'player-died') {
@@ -336,13 +344,27 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'CHEST_TAKE_ALL': {
       if (!state.chestState) return state;
 
-      const newInventory = [...state.player.inventory, ...state.chestState.items];
+      const capacity = getInventoryCapacity(state.player);
+      const canAdd = Math.max(0, capacity - state.player.inventory.length);
+      const toAdd = state.chestState.items.slice(0, canAdd);
+      const pending = state.chestState.items.slice(canAdd);
+
+      if (pending.length > 0) {
+        return {
+          ...state,
+          player: { ...state.player, inventory: [...state.player.inventory, ...toAdd] },
+          activeModal: 'discard',
+          chestState: null,
+          discardState: { pendingItems: pending },
+          message: `📦 ${toAdd.length}개 획득. 가방이 가득 찼습니다!`,
+        };
+      }
       return {
         ...state,
-        player: { ...state.player, inventory: newInventory },
+        player: { ...state.player, inventory: [...state.player.inventory, ...toAdd] },
         activeModal: null,
         chestState: null,
-        message: `📦 ${state.chestState.items.length}개의 아이템을 획득했습니다!`,
+        message: `📦 ${toAdd.length}개의 아이템을 획득했습니다!`,
       };
     }
 
@@ -421,27 +443,46 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return state;
     }
 
-    case 'EQUIP_ITEM': {
-      const item = state.player.inventory[action.itemIndex];
-      if (!item) return state;
+    case 'DROP_ITEM': {
+      const newInventory = state.player.inventory.filter((_, i) => i !== action.itemIndex);
 
-      if (item.type === 'weapon') {
-        const already = state.player.equippedWeaponId === item.id;
+      // 버리기 후 대기 중인 아이템 자동 추가
+      if (state.discardState && state.discardState.pendingItems.length > 0) {
+        const newCapacity = getInventoryCapacity({ ...state.player, inventory: newInventory });
+        const canAdd = Math.max(0, newCapacity - newInventory.length);
+        const toAdd = state.discardState.pendingItems.slice(0, canAdd);
+        const remaining = state.discardState.pendingItems.slice(canAdd);
+        const finalInventory = [...newInventory, ...toAdd];
+
+        if (remaining.length === 0) {
+          return {
+            ...state,
+            player: { ...state.player, inventory: finalInventory },
+            discardState: null,
+            activeModal: null,
+          };
+        }
         return {
           ...state,
-          player: { ...state.player, equippedWeaponId: already ? null : item.id },
-          message: already ? `${item.name} 장착 해제` : `⚔️ ${item.name} 장착`,
+          player: { ...state.player, inventory: finalInventory },
+          discardState: { pendingItems: remaining },
         };
       }
-      if (item.type === 'armor') {
-        const already = state.player.equippedArmorId === item.id;
-        return {
-          ...state,
-          player: { ...state.player, equippedArmorId: already ? null : item.id },
-          message: already ? `${item.name} 장착 해제` : `🛡️ ${item.name} 장착`,
-        };
+
+      return {
+        ...state,
+        player: { ...state.player, inventory: newInventory },
+      };
+    }
+
+    case 'DISCARD_SKIP': {
+      if (!state.discardState) return state;
+      const remaining = state.discardState.pendingItems.filter((_, i) => i !== action.pendingIndex);
+
+      if (remaining.length === 0) {
+        return { ...state, discardState: null, activeModal: null };
       }
-      return state;
+      return { ...state, discardState: { pendingItems: remaining } };
     }
 
     case 'SET_MODAL': {

@@ -110,6 +110,10 @@ export const ITEMS: Record<string, Item> = {
     id: 'eagle', name: '독수리', emoji: '🦅', type: 'special',
     description: '1분간 미니맵 경로를 공개합니다', rarity: 'uncommon',
   },
+  pouch: {
+    id: 'pouch', name: '주머니', emoji: '👜', type: 'special',
+    capacity: 5, description: '가방 용량을 5 증가시킵니다. 소지만 해도 효과 적용', rarity: 'rare',
+  },
 };
 
 // 숨겨진 조합 레시피 (플레이어가 실험으로 발견)
@@ -131,6 +135,8 @@ export const RECIPES: Record<string, string> = {
   'fire_stone+stone_blade': 'sword',
   'magic_dust+potion': 'mega_potion',
   'magic_dust+sword': 'flame_sword',
+  'magic_dust+wolf_pelt': 'pouch',
+  'herb+leather_armor': 'pouch',
 };
 
 export function craftItems(id1: string, id2: string): Item | null {

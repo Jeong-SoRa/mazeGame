@@ -501,18 +501,6 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       return { ...state, activeModal: action.modal, selectedCraftItems: [], craftResult: null };
     }
 
-    case 'REST': {
-      if (state.activeModal !== null) return state;
-      // HP/MP 완전 회복, 소요시간 +30초(startTime을 30초 앞당김), 이동수 +2
-      return {
-        ...state,
-        player: { ...state.player, hp: state.player.maxHp, mp: state.player.maxMp },
-        startTime: state.startTime - 30_000,
-        steps: state.steps + 2,
-        message: '💤 휴식 완료! HP/MP 완전 회복 (+30초, +2이동)',
-      };
-    }
-
     case 'CLEAR_MESSAGE': {
       return { ...state, message: null };
     }

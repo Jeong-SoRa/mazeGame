@@ -1,8 +1,7 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
-import { useGame } from '../store/gameStore';
-import { getPlayerAttack, getPlayerDefense, getInventoryCapacity } from '../game/CombatSystem';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { getInventoryCapacity, getPlayerAttack, getPlayerDefense } from '../game/CombatSystem';
 import { getElementEmoji, getElementName } from '../game/ElementSystem';
-import type { Item } from '../types/game.types';
+import { useGame } from '../store/gameStore';
 
 // ── 상수 ────────────────────────────────────────────────────────────────────
 const FOV       = Math.PI / 3;   // 60°
@@ -670,7 +669,17 @@ export default function FPSCanvas() {
 
   return (
     <div style={{
-      height: '100dvh', // dynamic viewport height (최신 브라우저 지원) 테스트 필요
+      height: '100dvh',
+      background: '#0a0a14',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'stretch',
+      overflow: 'hidden',
+    }}>
+    <div style={{
+      height: '100dvh',
+      width: '100%',
+      maxWidth: 690,
       display: 'flex',
       flexDirection: 'column',
       background: '#000',
@@ -1091,14 +1100,16 @@ export default function FPSCanvas() {
             <div style={{
               width: '70%',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-around',
+              alignItems: 'flex-start',
+              justifyContent: 'right',
               paddingLeft: 8,
               gap: 8,
               boxSizing: 'border-box',
             }}>
-              {/* 액션 버튼들 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {/* 왼쪽: 가방/만들기 버튼 */}
+              <div style={{ 
+                padding: '0 12px 0 0',
+                display:'flex', flexDirection:'column', gap:15}}>
                 <button
                   onClick={() => {
                     const panel = document.getElementById('fps-inv-panel');
@@ -1106,89 +1117,77 @@ export default function FPSCanvas() {
                   }}
                   style={{
                     background:'rgba(30,41,59,0.95)', border:'1px solid #4f46e5',
-                    color:'#a5b4fc', fontSize:12, borderRadius:6, padding:'6px 14px',
+                    color:'#a5b4fc', fontSize:12, borderRadius:6, padding:'10px 14px',
                     cursor:'pointer', userSelect:'none', touchAction:'manipulation',
                   }}>가방(E)</button>
                 <button
                   onClick={() => dispatch({ type:'SET_MODAL', modal:'crafting' })}
                   style={{
                     background:'rgba(30,41,59,0.95)', border:'1px solid #7c3aed',
-                    color:'#c4b5fd', fontSize:12, borderRadius:6, padding:'6px 14px',
+                    color:'#c4b5fd', fontSize:12, borderRadius:6, padding:'10px 14px',
                     cursor:'pointer', userSelect:'none', touchAction:'manipulation',
                   }}>만들기(Q)</button>
               </div>
 
-              {/* 이동 컨트롤 + 공격/도망 버튼 */}
-              <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
-                {/* 공격 / 도망 버튼 */}
-                <div style={{ display:'flex', gap:4 }}>
-                  <button
-                    disabled={activeModal !== 'combat'}
-                    onClick={() => dispatch({ type:'COMBAT_ATTACK' })}
-                    style={{
-                      background: activeModal === 'combat' ? 'rgba(127,29,29,0.85)' : 'rgba(55,65,81,0.6)',
-                      border: `1px solid ${activeModal === 'combat' ? '#ef4444' : '#4b5563'}`,
-                      color: activeModal === 'combat' ? '#fca5a5' : '#6b7280',
-                      fontSize:11, borderRadius:6, padding:'5px 10px',
-                      cursor: activeModal === 'combat' ? 'pointer' : 'not-allowed',
-                      userSelect:'none', touchAction:'manipulation', fontWeight:'bold',
-                      opacity: activeModal === 'combat' ? 1 : 0.5,
-                    }}>공격(space)</button>
-                  <button
-                    disabled={activeModal !== 'combat'}
-                    onClick={() => dispatch({ type:'COMBAT_FLEE' })}
-                    style={{
-                      background: activeModal === 'combat' ? 'rgba(20,83,45,0.85)' : 'rgba(55,65,81,0.6)',
-                      border: `1px solid ${activeModal === 'combat' ? '#22c55e' : '#4b5563'}`,
-                      color: activeModal === 'combat' ? '#86efac' : '#6b7280',
-                      fontSize:11, borderRadius:6, padding:'5px 10px',
-                      cursor: activeModal === 'combat' ? 'pointer' : 'not-allowed',
-                      userSelect:'none', touchAction:'manipulation', fontWeight:'bold',
-                      opacity: activeModal === 'combat' ? 1 : 0.5,
-                    }}>도   망(Z)</button>
-                </div>
-                {/* 방향키 그리드 */}
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(3,45px)', gridTemplateRows:'repeat(2,45px)', gap:3 }}>
+              {/* 가운데: 방향키 그리드 */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,45px)', gridTemplateRows:'repeat(2,45px)', gap:3 }}>
                 <div />
                 <button
                   onPointerDown={() => handleButtonPress('up')}
                   onPointerUp={() => handleButtonRelease('up')}
                   onPointerLeave={() => handleButtonRelease('up')}
-                  style={{
-                    ...padBtnStyle,
-                    ...(pressedButtons.has('up') ? padBtnActiveStyle : {}),
-                  }}
+                  style={{ ...padBtnStyle, ...(pressedButtons.has('up') ? padBtnActiveStyle : {}) }}
                 >↑(W)</button>
                 <div />
                 <button
                   onPointerDown={() => handleButtonPress('left')}
                   onPointerUp={() => handleButtonRelease('left')}
                   onPointerLeave={() => handleButtonRelease('left')}
-                  style={{
-                    ...padBtnStyle,
-                    ...(pressedButtons.has('left') ? padBtnActiveStyle : {}),
-                  }}
+                  style={{ ...padBtnStyle, ...(pressedButtons.has('left') ? padBtnActiveStyle : {}) }}
                 >←(A)</button>
                 <button
                   onPointerDown={() => handleButtonPress('down')}
                   onPointerUp={() => handleButtonRelease('down')}
                   onPointerLeave={() => handleButtonRelease('down')}
-                  style={{
-                    ...padBtnStyle,
-                    ...(pressedButtons.has('down') ? padBtnActiveStyle : {}),
-                  }}
+                  style={{ ...padBtnStyle, ...(pressedButtons.has('down') ? padBtnActiveStyle : {}) }}
                 >↓(S)</button>
                 <button
                   onPointerDown={() => handleButtonPress('right')}
                   onPointerUp={() => handleButtonRelease('right')}
                   onPointerLeave={() => handleButtonRelease('right')}
-                  style={{
-                    ...padBtnStyle,
-                    ...(pressedButtons.has('right') ? padBtnActiveStyle : {}),
-                  }}
+                  style={{ ...padBtnStyle, ...(pressedButtons.has('right') ? padBtnActiveStyle : {}) }}
                 >→(D)</button>
               </div>
-              </div>{/* 이동 컨트롤 + 공격/도망 래퍼 */}
+
+              {/* 오른쪽: 공격/도망 버튼 */}
+              <div style={{ 
+                padding: '0 0 0 12px',
+                display:'flex', flexDirection:'column', gap:15 }}>
+                <button
+                  disabled={activeModal !== 'combat'}
+                  onClick={() => dispatch({ type:'COMBAT_ATTACK' })}
+                  style={{
+                    background: activeModal === 'combat' ? 'rgba(127,29,29,0.85)' : 'rgba(55,65,81,0.6)',
+                    border: `1px solid ${activeModal === 'combat' ? '#ef4444' : '#4b5563'}`,
+                    color: activeModal === 'combat' ? '#fca5a5' : '#6b7280',
+                    fontSize:12, borderRadius:6, padding:'10px 10px',
+                    cursor: activeModal === 'combat' ? 'pointer' : 'not-allowed',
+                    userSelect:'none', touchAction:'manipulation', fontWeight:'bold',
+                    opacity: activeModal === 'combat' ? 1 : 0.5,
+                  }}>공격(space)</button>
+                <button
+                  disabled={activeModal !== 'combat'}
+                  onClick={() => dispatch({ type:'COMBAT_FLEE' })}
+                  style={{
+                    background: activeModal === 'combat' ? 'rgba(20,83,45,0.85)' : 'rgba(55,65,81,0.6)',
+                    border: `1px solid ${activeModal === 'combat' ? '#22c55e' : '#4b5563'}`,
+                    color: activeModal === 'combat' ? '#86efac' : '#6b7280',
+                    fontSize:12, borderRadius:6, padding:'10px 10px',
+                    cursor: activeModal === 'combat' ? 'pointer' : 'not-allowed',
+                    userSelect:'none', touchAction:'manipulation', fontWeight:'bold',
+                    opacity: activeModal === 'combat' ? 1 : 0.5,
+                  }}>도망(Z)</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1436,6 +1435,7 @@ export default function FPSCanvas() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

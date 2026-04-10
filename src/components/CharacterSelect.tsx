@@ -9,11 +9,16 @@ interface Props {
   user: User;
 }
 
-const characters: Character[] = [
+interface CharacterWithImage extends Character {
+  image: string;
+}
+
+const characters: CharacterWithImage[] = [
   {
     id: 'cheese_cat',
     name: '치즈 고양이',
     emoji: '🧀🐱',
+    image: '/cat_cheese.png',
     element: 'earth',
     description: '맛있는 치즈의 힘으로 든든한 방어력과 회복력을 가진 고양이',
     stats: { hp: 110, mp: 50, attack: 7, defense: 5 }
@@ -22,6 +27,7 @@ const characters: Character[] = [
     id: 'tuxedo_cat',
     name: '턱시도 고양이',
     emoji: '🤵🐱',
+    image: '/cat_tuxedo.png',
     element: 'water',
     description: '우아하고 지적인 턱시도 고양이, 마법과 균형잡힌 능력의 소유자',
     stats: { hp: 90, mp: 80, attack: 6, defense: 3 }
@@ -30,6 +36,7 @@ const characters: Character[] = [
     id: 'bread_cat',
     name: '식빵 고양이',
     emoji: '🍞🐱',
+    image: '/cat_bread.png',
     element: 'fire',
     description: '따뜻한 식빵처럼 빠르고 활기찬 고양이, 높은 공격력과 스피드가 특징',
     stats: { hp: 85, mp: 65, attack: 9, defense: 2 }
@@ -122,7 +129,15 @@ export default function CharacterSelect({ user }: Props) {
                 }
               }}
             >
-              <div style={{ fontSize: 48, marginBottom: 12 }}>{character.emoji}</div>
+              <div style={{ width: 120, height: 120, margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img
+                  src={character.image}
+                  alt={character.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'pixelated' }}
+                  onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; (e.currentTarget.nextSibling as HTMLElement).style.display = 'block'; }}
+                />
+                <span style={{ fontSize: 48, display: 'none' }}>{character.emoji}</span>
+              </div>
               <h3 style={{ color: '#fff', fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
                 {character.name}
               </h3>

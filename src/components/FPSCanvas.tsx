@@ -50,6 +50,7 @@ export default function FPSCanvas() {
   // 버튼 상태 관리
   const [pressedButtons, setPressedButtons] = useState<Set<string>>(new Set());
   const [showHelp, setShowHelp] = useState<boolean>(false);
+  const [actionLogs, setActionLogs] = useState<string[]>([]);
   const buttonIntervalRef = useRef<Record<string, number>>({});
 
   // ── refs (렌더링 루프용) ────────────────────────────────────────────────
@@ -68,6 +69,22 @@ export default function FPSCanvas() {
   const mazeSizeRef   = useRef(mazeSize);
   const activeModalRef = useRef(activeModal);
   const stateRef      = useRef(state);
+
+  // 액션 로그 추가 함수
+  const addActionLog = useCallback((message: string) => {
+    const timestamp = new Date().toLocaleTimeString('ko-KR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    const logEntry = `[${timestamp}] ${message}`;
+
+    setActionLogs(prev => {
+      const newLogs = [...prev, logEntry];
+      // 최대 50개 로그만 유지
+      return newLogs.slice(-50);
+    });
+  }, []);
 
   // refs 동기화
   useEffect(() => { mazeRef.current = maze; }, [maze]);
@@ -358,9 +375,11 @@ export default function FPSCanvas() {
       if (!isRepeat) {
         if (e.key === 'a' || e.key === 'A') {
           targetAngleRef.current -= Math.PI / 2;
+          addActionLog('왼쪽으로 돌았다.');
         }
         if (e.key === 'd' || e.key === 'D') {
           targetAngleRef.current += Math.PI / 2;
+          addActionLog('오른쪽으로 돌았다.');
         }
       }
 
@@ -397,6 +416,7 @@ export default function FPSCanvas() {
 
         console.log('Movement allowed by raycast, dispatching MOVE with bypass');
         dispatch({ type: 'MOVE', dx, dy, bypassWallCheck: true });
+        addActionLog('앞으로 전진했다.');
       }
       if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
         console.log('=== Keyboard Backward (Rotation Sync) ===');
@@ -432,14 +452,17 @@ export default function FPSCanvas() {
 
         console.log('Movement allowed by raycast, dispatching MOVE with bypass');
         dispatch({ type: 'MOVE', dx: finalDx, dy: finalDy, bypassWallCheck: true });
+        addActionLog('뒤로 후진했다.');
       }
 
       // 회전 (키 반복 허용)
       if (e.key === 'ArrowLeft') {
         targetAngleRef.current -= Math.PI / 2;
+        addActionLog('왼쪽으로 돌았다.');
       }
       if (e.key === 'ArrowRight') {
         targetAngleRef.current += Math.PI / 2;
+        addActionLog('오른쪽으로 돌았다.');
       }
 
       lastKeyRef.current[e.key] = true;
@@ -540,6 +563,7 @@ export default function FPSCanvas() {
 
     console.log('Movement allowed by raycast, dispatching MOVE with bypass');
     dispatch({ type: 'MOVE', dx: finalDx, dy: finalDy, bypassWallCheck: true });
+    addActionLog(direction === 'forward' ? '앞으로 전진했다.' : '뒤로 후진했다.');
   }
 
   function handleTouchRotate(direction: 'left' | 'right') {
@@ -659,6 +683,84 @@ export default function FPSCanvas() {
             {state.message}
           </div>
         )}
+      </div>
+
+      {/* ── 액션 로그 영역 ── */}
+      <div style={{
+        flexShrink: 0,
+        height: '120px',
+        background: 'linear-gradient(to bottom, rgba(15,23,42,0.95), rgba(30,41,59,0.95))',
+        borderTop: '1px solid #334155',
+        borderBottom: '1px solid #334155',
+        fontFamily: "'Courier New', monospace",
+        fontSize: 12,
+        overflow: 'hidden',
+        position: 'relative',
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '6px 12px',
+          background: 'rgba(51,65,85,0.8)',
+          borderBottom: '1px solid #475569',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 14 }}>📜</span>
+            <span style={{ color: '#94a3b8', fontSize: 11, fontWeight: 'bold' }}>액션 로그</span>
+          </div>
+          <button
+            onClick={() => setActionLogs([])}
+            style={{
+              background: 'rgba(239,68,68,0.1)',
+              border: '1px solid #ef4444',
+              color: '#fca5a5',
+              fontSize: 10,
+              padding: '2px 6px',
+              borderRadius: 4,
+              cursor: 'pointer',
+            }}
+          >
+            지우기
+          </button>
+        </div>
+        <div style={{
+          height: 'calc(120px - 32px)',
+          overflowY: 'auto',
+          padding: '8px 12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+        }}>
+          {actionLogs.length === 0 ? (
+            <div style={{
+              color: '#64748b',
+              fontSize: 11,
+              fontStyle: 'italic',
+              textAlign: 'center',
+              paddingTop: 20,
+            }}>
+              액션이 여기에 표시됩니다...
+            </div>
+          ) : (
+            actionLogs.map((log, index) => (
+              <div
+                key={index}
+                style={{
+                  color: index === actionLogs.length - 1 ? '#e2e8f0' : '#94a3b8',
+                  fontSize: 11,
+                  lineHeight: '1.3',
+                  opacity: index === actionLogs.length - 1 ? 1 : 0.7,
+                  transition: 'all 0.3s ease',
+                  paddingLeft: index === actionLogs.length - 1 ? 8 : 0,
+                  borderLeft: index === actionLogs.length - 1 ? '2px solid #3b82f6' : 'none',
+                }}
+              >
+                {log}
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {/* ── 하단 UI 영역 ── */}

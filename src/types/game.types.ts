@@ -56,7 +56,6 @@ export interface ChestInstance {
 export interface Character {
   id: string;
   name: string;
-  emoji: string;
   description: string;
   element: Element; // 캐릭터 속성
   stats: {

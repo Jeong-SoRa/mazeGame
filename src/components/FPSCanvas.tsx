@@ -49,6 +49,7 @@ export default function FPSCanvas() {
 
   // 버튼 상태 관리
   const [pressedButtons, setPressedButtons] = useState<Set<string>>(new Set());
+  const [showHelp, setShowHelp] = useState<boolean>(false);
   const buttonIntervalRef = useRef<Record<string, number>>({});
 
   // ── refs (렌더링 루프용) ────────────────────────────────────────────────
@@ -346,6 +347,12 @@ export default function FPSCanvas() {
       }
 
       const isRepeat = lastKeyRef.current[e.key];
+
+      // 도움말 토글 (한 번만 처리)
+      if (!isRepeat && (e.key === 'h' || e.key === 'H')) {
+        setShowHelp(prev => !prev);
+        return;
+      }
 
       // 회전 (한 번만 처리)
       if (!isRepeat) {
@@ -852,6 +859,193 @@ export default function FPSCanvas() {
           </button>
         </div>
       </div>
+
+      {/* ── 키보드 단축키 도움말 오버레이 ── */}
+      {showHelp && (
+        <div style={{
+          position:'fixed', top:0, left:0, right:0, bottom:0,
+          background:'rgba(0,0,0,0.92)', zIndex:60,
+          display:'flex', alignItems:'center', justifyContent:'center',
+          padding:'20px',
+        }}>
+          <div style={{
+            background:'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+            border:'2px solid #4f46e5',
+            borderRadius:16,
+            maxWidth:500,
+            width:'100%',
+            maxHeight:'90vh',
+            overflowY:'auto',
+            boxShadow:'0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          }}>
+            <div style={{
+              display:'flex', justifyContent:'space-between', alignItems:'center',
+              padding:'20px 24px 16px', borderBottom:'2px solid #475569',
+              background:'rgba(79, 70, 229, 0.1)',
+            }}>
+              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                <span style={{ fontSize:28 }}>⌨️</span>
+                <span style={{ color:'#e2e8f0', fontSize:20, fontWeight:'bold' }}>키보드 단축키</span>
+              </div>
+              <button
+                onClick={() => setShowHelp(false)}
+                style={{
+                  background:'rgba(239, 68, 68, 0.1)', border:'2px solid #ef4444',
+                  color:'#fca5a5', fontSize:20, cursor:'pointer', lineHeight:1,
+                  borderRadius:8, width:40, height:40,
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  transition:'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+                  e.currentTarget.style.transform = 'scale(1.05)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}>
+                ✕
+              </button>
+            </div>
+            <div style={{ padding:'24px' }}>
+              <div style={{ display:'grid', gap:16 }}>
+                {/* 이동 컨트롤 */}
+                <div style={{
+                  background:'rgba(30, 41, 59, 0.8)',
+                  padding:16,
+                  borderRadius:12,
+                  border:'1px solid #475569'
+                }}>
+                  <h3 style={{
+                    color:'#60a5fa',
+                    fontSize:16,
+                    fontWeight:'bold',
+                    margin:'0 0 12px 0',
+                    display:'flex',
+                    alignItems:'center',
+                    gap:8
+                  }}>
+                    🏃 이동
+                  </h3>
+                  <div style={{ display:'grid', gap:8, fontSize:14 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <span style={{ color:'#e2e8f0' }}>앞으로 이동</span>
+                      <div style={{ display:'flex', gap:4 }}>
+                        <kbd style={{
+                          background:'#374151', color:'#f3f4f6', padding:'4px 8px',
+                          borderRadius:6, fontSize:12, fontFamily:'monospace',
+                          border:'1px solid #4b5563'
+                        }}>W</kbd>
+                        <kbd style={{
+                          background:'#374151', color:'#f3f4f6', padding:'4px 8px',
+                          borderRadius:6, fontSize:12, fontFamily:'monospace',
+                          border:'1px solid #4b5563'
+                        }}>↑</kbd>
+                      </div>
+                    </div>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <span style={{ color:'#e2e8f0' }}>뒤로 이동</span>
+                      <div style={{ display:'flex', gap:4 }}>
+                        <kbd style={{
+                          background:'#374151', color:'#f3f4f6', padding:'4px 8px',
+                          borderRadius:6, fontSize:12, fontFamily:'monospace',
+                          border:'1px solid #4b5563'
+                        }}>S</kbd>
+                        <kbd style={{
+                          background:'#374151', color:'#f3f4f6', padding:'4px 8px',
+                          borderRadius:6, fontSize:12, fontFamily:'monospace',
+                          border:'1px solid #4b5563'
+                        }}>↓</kbd>
+                      </div>
+                    </div>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <span style={{ color:'#e2e8f0' }}>좌회전</span>
+                      <div style={{ display:'flex', gap:4 }}>
+                        <kbd style={{
+                          background:'#374151', color:'#f3f4f6', padding:'4px 8px',
+                          borderRadius:6, fontSize:12, fontFamily:'monospace',
+                          border:'1px solid #4b5563'
+                        }}>A</kbd>
+                        <kbd style={{
+                          background:'#374151', color:'#f3f4f6', padding:'4px 8px',
+                          borderRadius:6, fontSize:12, fontFamily:'monospace',
+                          border:'1px solid #4b5563'
+                        }}>←</kbd>
+                      </div>
+                    </div>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <span style={{ color:'#e2e8f0' }}>우회전</span>
+                      <div style={{ display:'flex', gap:4 }}>
+                        <kbd style={{
+                          background:'#374151', color:'#f3f4f6', padding:'4px 8px',
+                          borderRadius:6, fontSize:12, fontFamily:'monospace',
+                          border:'1px solid #4b5563'
+                        }}>D</kbd>
+                        <kbd style={{
+                          background:'#374151', color:'#f3f4f6', padding:'4px 8px',
+                          borderRadius:6, fontSize:12, fontFamily:'monospace',
+                          border:'1px solid #4b5563'
+                        }}>→</kbd>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 기타 컨트롤 */}
+                <div style={{
+                  background:'rgba(30, 41, 59, 0.8)',
+                  padding:16,
+                  borderRadius:12,
+                  border:'1px solid #475569'
+                }}>
+                  <h3 style={{
+                    color:'#a78bfa',
+                    fontSize:16,
+                    fontWeight:'bold',
+                    margin:'0 0 12px 0',
+                    display:'flex',
+                    alignItems:'center',
+                    gap:8
+                  }}>
+                    🎮 기타
+                  </h3>
+                  <div style={{ display:'grid', gap:8, fontSize:14 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <span style={{ color:'#e2e8f0' }}>도움말 보기/숨기기</span>
+                      <kbd style={{
+                        background:'#7c3aed', color:'#ffffff', padding:'4px 8px',
+                        borderRadius:6, fontSize:12, fontFamily:'monospace',
+                        border:'1px solid #8b5cf6'
+                      }}>H</kbd>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 팁 섹션 */}
+                <div style={{
+                  background:'linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%)',
+                  padding:16,
+                  borderRadius:12,
+                  border:'1px solid #10b981',
+                }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+                    <span style={{ fontSize:16 }}>💡</span>
+                    <span style={{ color:'#10b981', fontSize:14, fontWeight:'bold' }}>팁</span>
+                  </div>
+                  <p style={{
+                    color:'#a7f3d0',
+                    fontSize:13,
+                    lineHeight:'1.4',
+                    margin:0,
+                  }}>
+                    키를 누르고 있으면 계속 이동할 수 있어요! 미로를 빠르게 탐험해보세요.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

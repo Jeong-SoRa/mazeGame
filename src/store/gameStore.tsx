@@ -389,6 +389,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const { selectedCraftItems, player } = state;
       if (selectedCraftItems.length !== 2) return state;
 
+      // 마나 부족 시 조합 불가
+      const MP_COST = 10;
+      if (player.mp < MP_COST) {
+        return {
+          ...state,
+          selectedCraftItems: [],
+          craftResult: { success: false, item: null, message: `💧 마나가 부족합니다! (필요: ${MP_COST} MP)` },
+        };
+      }
+
       const [i1, i2] = selectedCraftItems;
       const item1 = player.inventory[i1];
       const item2 = player.inventory[i2];
@@ -402,13 +412,14 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         newInventory.push(result);
         return {
           ...state,
-          player: { ...state.player, inventory: newInventory },
+          player: { ...state.player, inventory: newInventory, mp: player.mp - MP_COST },
           selectedCraftItems: [],
-          craftResult: { success: true, item: result, message: `✨ ${result.emoji} ${result.name} 제작 성공!` },
+          craftResult: { success: true, item: result, message: `✨ ${result.emoji} ${result.name} 제작 성공! (MP -${MP_COST})` },
         };
       } else {
         return {
           ...state,
+          player: { ...state.player, mp: player.mp - MP_COST },
           selectedCraftItems: [],
           craftResult: { success: false, item: null, message: '❌ 조합에 실패했습니다. 다른 조합을 시도해보세요.' },
         };

@@ -21,9 +21,19 @@ export default function CraftingModal() {
           </button>
         </div>
 
-        <p style={{ color: '#6b7280', fontSize: 12, marginBottom: 12 }}>
-          💡 인벤토리에서 두 아이템을 선택하면 조합을 시도합니다. 레시피는 직접 발견해보세요!
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <p style={{ color: '#6b7280', fontSize: 12, margin: 0 }}>
+            💡 인벤토리에서 두 아이템을 선택하면 조합을 시도합니다. 레시피는 직접 발견해보세요!
+          </p>
+          <div style={{
+            background: player.mp < 10 ? '#450a0a' : '#0f172a',
+            border: `1px solid ${player.mp < 10 ? '#dc2626' : '#334155'}`,
+            borderRadius: 6, padding: '4px 10px', fontSize: 12, flexShrink: 0,
+            color: player.mp < 10 ? '#fca5a5' : '#7dd3fc',
+          }}>
+            💧 {player.mp}/{player.maxMp} <span style={{ color: '#6b7280' }}>(조합 -10)</span>
+          </div>
+        </div>
 
         {/* 조합 슬롯 */}
         <div style={{
@@ -81,19 +91,24 @@ export default function CraftingModal() {
         {/* 조합 버튼 */}
         <button
           onClick={() => dispatch({ type: 'CRAFT_ITEMS' })}
-          disabled={selectedCraftItems.length !== 2}
+          disabled={selectedCraftItems.length !== 2 || player.mp < 10}
           style={{
             width: '100%',
-            background: selectedCraftItems.length === 2
+            background: selectedCraftItems.length === 2 && player.mp >= 10
               ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
               : '#374151',
-            color: selectedCraftItems.length === 2 ? '#fff' : '#6b7280',
+            color: selectedCraftItems.length === 2 && player.mp >= 10 ? '#fff' : '#6b7280',
             border: 'none', borderRadius: 8,
-            padding: '10px', fontSize: 14, cursor: selectedCraftItems.length === 2 ? 'pointer' : 'not-allowed',
+            padding: '10px', fontSize: 14,
+            cursor: selectedCraftItems.length === 2 && player.mp >= 10 ? 'pointer' : 'not-allowed',
             fontWeight: 600, marginBottom: 16,
           }}
         >
-          {selectedCraftItems.length === 2 ? '⚗️ 조합 시도!' : `아이템 ${2 - selectedCraftItems.length}개 더 선택`}
+          {player.mp < 10
+            ? '💧 마나 부족! (10 MP 필요)'
+            : selectedCraftItems.length === 2
+              ? '⚗️ 조합 시도! (MP -10)'
+              : `아이템 ${2 - selectedCraftItems.length}개 더 선택`}
         </button>
 
         {/* 인벤토리 */}

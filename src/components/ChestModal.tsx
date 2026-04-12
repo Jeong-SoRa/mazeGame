@@ -1,5 +1,6 @@
 import { useGame } from '../store/gameStore';
 import { RARITY_COLORS } from '../game/ItemDatabase';
+import { ItemImage } from './ItemImage';
 
 export default function ChestModal() {
   const { state, dispatch } = useGame();
@@ -24,7 +25,7 @@ export default function ChestModal() {
               background: '#0f172a', border: `1px solid ${RARITY_COLORS[item.rarity]}40`,
               borderRadius: 8, padding: '10px 14px',
             }}>
-              <span style={{ fontSize: 28 }}>{item.emoji}</span>
+              <ItemImage itemId={item.id} emoji={item.emoji} size={28} />
               <div style={{ flex: 1, textAlign: 'left' }}>
                 <div style={{ color: RARITY_COLORS[item.rarity], fontWeight: 700, fontSize: 14 }}>
                   {item.name}

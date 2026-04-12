@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getInventoryCapacity, getPlayerAttack, getPlayerDefense } from '../game/CombatSystem';
 import { getElementEmoji, getElementName } from '../game/ElementSystem';
 import { useGame } from '../store/gameStore';
+import { ItemImage } from './ItemImage';
 
 // ── 상수 ────────────────────────────────────────────────────────────────────
 const FOV       = Math.PI / 3;   // 60°
@@ -43,8 +44,23 @@ export default function FPSCanvas() {
   const {
     maze, mazeSize, playerPos,
     player, steps, optimalSteps, elapsedSeconds, stage,
-    activeModal, combatState, chestState, actionLogs = [], exitPos
+    activeModal, combatState, chestState, actionLogs = []
   } = state;
+
+  // 보물상자 아이템 선택 상태 (기본: 전체 선택)
+  const [selectedChestItems, setSelectedChestItems] = useState<number[]>([]);
+  useEffect(() => {
+    const next = chestState ? chestState.items.map((_, i) => i) : [];
+    setSelectedChestItems(next);
+    selectedChestItemsRef.current = next;
+  }, [chestState]);
+
+  // 로그 자동 스크롤
+  useEffect(() => {
+    if (logScrollRef.current) {
+      logScrollRef.current.scrollTop = logScrollRef.current.scrollHeight;
+    }
+  }, [actionLogs]);
 
   // 버튼 상태 관리
   const [pressedButtons, setPressedButtons] = useState<Set<string>>(new Set());
@@ -55,6 +71,7 @@ export default function FPSCanvas() {
   const canvasRef  = useRef<HTMLCanvasElement>(null);
   const mmRef      = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const logScrollRef = useRef<HTMLDivElement>(null);
 
   const fpsPosRef     = useRef({ x: 1.5, y: 1.5 });
   const targetPosRef  = useRef({ x: 1.5, y: 1.5 });
@@ -67,6 +84,15 @@ export default function FPSCanvas() {
   const mazeSizeRef   = useRef(mazeSize);
   const activeModalRef = useRef(activeModal);
   const stateRef      = useRef(state);
+  const chestImgRef   = useRef<HTMLImageElement | null>(null);
+  const selectedChestItemsRef = useRef<number[]>([]);
+
+  // 보물상자 이미지 preload
+  useEffect(() => {
+    const img = new Image();
+    img.src = '/common/chest.png';
+    img.onload = () => { chestImgRef.current = img; };
+  }, []);
 
   // 액션 로그 추가 함수
   const addActionLog = useCallback((message: string, type: 'move' | 'combat' | 'item' | 'system' = 'move') => {
@@ -77,7 +103,11 @@ export default function FPSCanvas() {
   useEffect(() => { mazeRef.current = maze; }, [maze]);
   useEffect(() => { mazeSizeRef.current = mazeSize; }, [mazeSize]);
   useEffect(() => { activeModalRef.current = activeModal; }, [activeModal]);
-  useEffect(() => { stateRef.current = state; }, [state]);
+  const moveCooldownRef = useRef(false);
+  useEffect(() => {
+    stateRef.current = state;
+    moveCooldownRef.current = false;
+  }, [state]);
 
   // 그리드 위치 변화 → targetPos 갱신
   useEffect(() => {
@@ -187,14 +217,16 @@ export default function FPSCanvas() {
       while (relM < -Math.PI) relM += 2 * Math.PI;
       if (Math.abs(relM) > FOV * 0.6) continue;
       const corrM = dist2 * Math.cos(relM);
-      const sH = Math.min(H * 0.8, H / corrM * 0.9);
+      const isInCombat = s.combatState?.monsterKey === key;
+      const maxSizeM = isInCombat ? H * 0.95 : H * 0.75;
+      const sH = Math.min(maxSizeM, H / corrM * 0.9);
       const screenX = W / 2 + (relM / (FOV / 2)) * (W / 2);
       const top2 = (H - sH) / 2;
       ctx.save();
       ctx.font = `${sH * 0.6}px serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.globalAlpha = Math.max(0.2, 1 - corrM / 8);
+      ctx.globalAlpha = isInCombat ? 1.0 : Math.max(0.2, 1 - corrM / 6);
       ctx.fillText(monster.emoji, screenX, top2 + sH / 2);
       // HP bar
       const bw = sH * 0.6, bx = screenX - bw / 2, by = top2 - 10;
@@ -204,6 +236,41 @@ export default function FPSCanvas() {
       const hpPct = monster.currentHp / monster.maxHp;
       ctx.fillStyle = hpPct > 0.5 ? '#22c55e' : hpPct > 0.25 ? '#f59e0b' : '#ef4444';
       ctx.fillRect(bx, by, bw * hpPct, 5);
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    }
+
+    // 보물상자 빌보드
+    for (const [key, chest] of Object.entries(s.chests)) {
+      // 열린 상자라도 현재 활성 chestState면 계속 렌더링
+      if (chest.opened && s.chestState?.chestKey !== key) continue;
+      const [cx2, cy2] = key.split(',').map(Number);
+      const cdx = (cx2 + 0.5) - px, cdy = (cy2 + 0.5) - py;
+      const dist3 = Math.sqrt(cdx * cdx + cdy * cdy);
+      if (dist3 > mzSize * 0.6) continue;
+      const cAngle = Math.atan2(cdy, cdx);
+      const lineOfSight2 = castRay(px, py, cAngle, mz, mzSize);
+      if (lineOfSight2.dist < dist3 - 0.1) continue;
+      let relC = cAngle - angle;
+      while (relC >  Math.PI) relC -= 2 * Math.PI;
+      while (relC < -Math.PI) relC += 2 * Math.PI;
+      if (Math.abs(relC) > FOV * 0.6) continue;
+      const corrC = dist3 * Math.cos(relC);
+      const isActiveChest = s.chestState?.chestKey === key;
+      const maxSizeC = isActiveChest ? H * 0.85 : H * 0.65;
+      const sHC = Math.min(maxSizeC, H / corrC * 0.85);
+      const screenXC = W / 2 + (relC / (FOV / 2)) * (W / 2);
+      const topC = isActiveChest ? (H - sHC) / 2 : ((H - sHC) / 2) + 80;
+      ctx.save();
+      ctx.globalAlpha = isActiveChest ? 1.0 : Math.max(0.3, 1 - corrC / 6);
+      if (chestImgRef.current) {
+        ctx.drawImage(chestImgRef.current, screenXC - sHC / 2, topC, sHC, sHC*0.8);
+      } else {
+        ctx.font = `${sHC * 0.6}px serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('📦', screenXC, topC + sHC / 2);
+      }
       ctx.globalAlpha = 1;
       ctx.restore();
     }
@@ -364,7 +431,8 @@ export default function FPSCanvas() {
       // 보물상자 중 키 처리
       if (stateRef.current.chestState !== null) {
         if (!isRepeat && e.key === ' ') {
-          dispatch({ type: 'CHEST_TAKE_ALL' });
+          const sel = selectedChestItemsRef.current;
+          dispatch({ type: 'CHEST_TAKE_SELECTED', itemIndices: sel });
           addActionLog('보물상자를 열었다.', 'item');
         }
         if (!isRepeat && (e.key === 'z' || e.key === 'Z')) {
@@ -389,7 +457,12 @@ export default function FPSCanvas() {
       // 가방 열기/닫기 (한 번만 처리)
       if (!isRepeat && (e.key === 'e' || e.key === 'E')) {
         const panel = document.getElementById('fps-inv-panel');
-        if (panel) panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+        const overlay = document.getElementById('fps-inv-overlay');
+        if (panel) {
+          const next = panel.style.display === 'flex' ? 'none' : 'flex';
+          panel.style.display = next;
+          if (overlay) overlay.style.display = next === 'flex' ? 'block' : 'none';
+        }
         return;
       }
 
@@ -443,9 +516,12 @@ export default function FPSCanvas() {
           return;
         }
 
-        console.log('Movement allowed by raycast, dispatching MOVE with bypass');
+        if (moveCooldownRef.current) return;
+        moveCooldownRef.current = true;
+        const targetKey = `${currentPos.x + dx},${currentPos.y + dy}`;
+        const willEncounter = !!stateRef.current.monsters[targetKey];
         dispatch({ type: 'MOVE', dx, dy, bypassWallCheck: true });
-        addActionLog('앞으로 전진했다.', 'move');
+        if (!willEncounter) addActionLog('앞으로 전진했다.', 'move');
       }
       if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
         console.log('=== Keyboard Backward (Rotation Sync) ===');
@@ -479,9 +555,12 @@ export default function FPSCanvas() {
           return;
         }
 
-        console.log('Movement allowed by raycast, dispatching MOVE with bypass');
+        if (moveCooldownRef.current) return;
+        moveCooldownRef.current = true;
+        const targetKey = `${currentPos.x + finalDx},${currentPos.y + finalDy}`;
+        const willEncounter = !!stateRef.current.monsters[targetKey];
         dispatch({ type: 'MOVE', dx: finalDx, dy: finalDy, bypassWallCheck: true });
-        addActionLog('뒤로 후진했다.', 'move');
+        if (!willEncounter) addActionLog('뒤로 후진했다.', 'move');
       }
 
       // 회전 (키 반복 허용)
@@ -531,7 +610,7 @@ export default function FPSCanvas() {
           display:'flex', alignItems:'center', gap:7, fontSize:12, color:'#d1d5db',
           position: 'relative',
         }}>
-          <span style={{ fontSize:18, flexShrink:0 }}>{item.emoji}</span>
+          <ItemImage itemId={item.id} emoji={item.emoji} size={18} style={{ flexShrink: 0 }} />
           <div style={{ flex:1, display:'flex', flexDirection:'column', gap:1, minWidth:0 }}>
             <span style={{ fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
               {item.name}
@@ -611,9 +690,12 @@ export default function FPSCanvas() {
       return;
     }
 
-    console.log('Movement allowed by raycast, dispatching MOVE with bypass');
+    if (moveCooldownRef.current) return;
+    moveCooldownRef.current = true;
+    const targetKey = `${currentPos.x + finalDx},${currentPos.y + finalDy}`;
+    const willEncounter = !!stateRef.current.monsters[targetKey];
     dispatch({ type: 'MOVE', dx: finalDx, dy: finalDy, bypassWallCheck: true });
-    addActionLog(direction === 'forward' ? '앞으로 전진했다.' : '뒤로 후진했다.', 'move');
+    if (!willEncounter) addActionLog(direction === 'forward' ? '앞으로 전진했다.' : '뒤로 후진했다.', 'move');
   }
 
   function handleTouchRotate(direction: 'left' | 'right') {
@@ -809,6 +891,92 @@ export default function FPSCanvas() {
         }} />
 
 
+        {/* 전투 승리 오버레이 */}
+        {combatState && combatState.phase === 'player-won' && (
+          <VictoryOverlay
+            monsterName={combatState.monster.name}
+            isBoss={BOSS_IDS.has(combatState.monster.templateId)}
+            onDone={() => dispatch({ type: 'COMBAT_NEXT_PHASE' })}
+          />
+        )}
+
+        {/* 전투 중 오버레이 */}
+        {combatState && (combatState.phase !== 'player-won' || !BOSS_IDS.has(combatState.monster.templateId)) && (
+          <div style={{
+            position: 'absolute',
+            top: 10,
+            left: 10,
+            zIndex: 10,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            pointerEvents: 'none',
+          }}>
+            {/* 타이틀 */}
+            <span style={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.15em',
+              textTransform: 'uppercase',
+              color: '#ef4444',
+              textShadow: '0 0 8px rgba(239,68,68,0.8), 0 1px 3px #000',
+              fontFamily: 'monospace',
+            }}>⚔ 전투 중</span>
+            {/* 몬스터 이름 */}
+            <div style={{
+              fontSize: 18,
+              fontWeight: 800,
+              color: '#fff',
+              textShadow: '0 0 12px rgba(239,68,68,0.6), 0 2px 6px #000',
+              letterSpacing: '0.05em',
+              lineHeight: 1,
+            }}>
+              {combatState.monster.name}
+            </div>
+            {/* HP 바 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 10, color: '#fca5a5', fontWeight: 600, letterSpacing: '0.05em' }}>HP</span>
+                <span style={{ fontSize: 10, color: '#fca5a5', fontFamily: 'monospace' }}>
+                  {combatState.monster.currentHp} / {combatState.monster.maxHp}
+                </span>
+              </div>
+              <div style={{
+                width: 180,
+                height: 10,
+                background: 'rgba(0,0,0,0.6)',
+                borderRadius: 5,
+                border: '1px solid rgba(239,68,68,0.4)',
+                overflow: 'hidden',
+              }}>
+                <div style={{
+                  width: `${Math.max(0, (combatState.monster.currentHp / combatState.monster.maxHp) * 100)}%`,
+                  height: '100%',
+                  background: combatState.monster.currentHp / combatState.monster.maxHp > 0.5
+                    ? 'linear-gradient(90deg, #dc2626, #ef4444)'
+                    : combatState.monster.currentHp / combatState.monster.maxHp > 0.25
+                    ? 'linear-gradient(90deg, #ea580c, #f97316)'
+                    : 'linear-gradient(90deg, #7f1d1d, #b91c1c)',
+                  borderRadius: 5,
+                  transition: 'width 0.3s ease',
+                  boxShadow: '0 0 6px rgba(239,68,68,0.7)',
+                }} />
+              </div>
+            </div>
+            {/* 일반 몹 승리 텍스트 */}
+            {combatState.phase === 'player-won' && (
+              <div style={{
+                fontSize: 13,
+                fontWeight: 700,
+                color: '#fbbf24',
+                textShadow: '0 0 8px rgba(251,191,36,0.8), 0 1px 4px #000',
+                animation: 'normalVictoryFloat 0.5s ease-out',
+                letterSpacing: '0.1em',
+              }}>🏆 승리!</div>
+            )}
+          </div>
+        )}
+
         {/* 보물상자 인라인 UI */}
         {chestState && (
           <div style={{
@@ -819,27 +987,90 @@ export default function FPSCanvas() {
             border: '1px solid #fbbf24',
             borderRadius: 8,
             padding: 12,
-            minWidth: 250,
+            minWidth: 260,
+            maxWidth: 320,
             zIndex: 10,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 24 }}>📦</span>
               <h4 style={{ color: '#fbbf24', margin: 0, fontSize: 14 }}>보물상자 발견!</h4>
             </div>
+            {/* 아이템 목록 */}
+            {chestState.items.length > 0 ? (
+              <div style={{ marginBottom: 10 }}>
+                {chestState.items.map((item, i) => {
+                  const rarityColor: Record<string, string> = {
+                    common: '#9ca3af',
+                    uncommon: '#4ade80',
+                    rare: '#60a5fa',
+                    epic: '#c084fc',
+                    legendary: '#fbbf24',
+                  };
+                  const color = rarityColor[item.rarity] ?? '#e2e8f0';
+                  const stats: string[] = [];
+                  if (item.attack) stats.push(`공격+${item.attack}`);
+                  if (item.defense) stats.push(`방어+${item.defense}`);
+                  if (item.heal) stats.push(`회복+${item.heal}`);
+                  if (item.capacity) stats.push(`용량+${item.capacity}`);
+                  const checked = selectedChestItems.includes(i);
+                  return (
+                    <div key={item.id} style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 6,
+                      padding: '4px 0',
+                      borderBottom: '1px solid rgba(255,255,255,0.07)',
+                      cursor: 'pointer',
+                    }} onClick={() => {
+                      const next = checked
+                        ? selectedChestItems.filter(idx => idx !== i)
+                        : [...selectedChestItems, i];
+                      setSelectedChestItems(next);
+                      selectedChestItemsRef.current = next;
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        readOnly
+                        style={{ marginTop: 3, accentColor: '#f59e0b', cursor: 'pointer', flexShrink: 0 }}
+                      />
+                      <ItemImage itemId={item.id} emoji={item.emoji} size={16} />
+                      <div>
+                        <div style={{ color, fontSize: 12, fontWeight: 600 }}>{item.name}</div>
+                        {stats.length > 0 && (
+                          <div style={{ color: '#94a3b8', fontSize: 10 }}>{stats.join(' / ')}</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ color: '#6b7280', fontSize: 11, marginBottom: 10 }}>상자가 비어 있다.</div>
+            )}
             <button
-              onClick={() => dispatch({ type: 'CHEST_TAKE_ALL' })}
+              onClick={() => {
+                const sel = selectedChestItemsRef.current;
+                dispatch({ type: 'CHEST_TAKE_SELECTED', itemIndices: sel });
+                addActionLog('보물상자를 열었다.', 'item');
+              }}
+              disabled={selectedChestItems.length === 0}
               style={{
-                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                color: '#000',
+                display: 'block',
+                width: 'calc(100% - 16px)',
+                margin: '0 8px',
+                boxSizing: 'border-box',
+                background: selectedChestItems.length > 0
+                  ? 'linear-gradient(135deg, #f59e0b, #d97706)'
+                  : 'rgba(55,65,81,0.6)',
+                color: selectedChestItems.length > 0 ? '#000' : '#6b7280',
                 border: 'none',
                 borderRadius: 4,
-                padding: '6px 12px',
+                padding: '6px 0',
                 fontSize: 10,
-                cursor: 'pointer',
+                cursor: selectedChestItems.length > 0 ? 'pointer' : 'not-allowed',
                 fontWeight: 600,
+                textAlign: 'center',
               }}
             >
-              📥 전부 획득
+              {selectedChestItems.length}개 획득 (Space)
             </button>
           </div>
         )}
@@ -942,13 +1173,13 @@ export default function FPSCanvas() {
         </div>
 
         {/* 로그 목록 */}
-        <div style={{
+        <div ref={logScrollRef} style={{
           flex: 1,
           overflowY: 'auto',
           padding: '8px 12px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 2,
+          gap: 3,
         }}>
           {actionLogs.length === 0 ? (
             <div style={{
@@ -961,24 +1192,50 @@ export default function FPSCanvas() {
               액션이 여기에 표시됩니다...
             </div>
           ) : (
-            actionLogs.map((log, index) => (
-              <div
-                key={log.id}
-                style={{
-                  color: log.type === 'move' ? '#93c5fd' :
-                        log.type === 'combat' ? '#f87171' :
-                        log.type === 'item' ? '#fbbf24' : '#e2e8f0',
-                  fontSize: 11,
-                  lineHeight: '1.3',
-                  opacity: index === actionLogs.length - 1 ? 1 : 0.7,
-                  transition: 'all 0.3s ease',
-                  paddingLeft: index === actionLogs.length - 1 ? 8 : 0,
-                  borderLeft: index === actionLogs.length - 1 ? '2px solid #3b82f6' : 'none',
-                }}
-              >
-                {log.message}
-              </div>
-            ))
+            actionLogs.map((log, index) => {
+              const isLatest = index === actionLogs.length - 1;
+
+              // 타입별 스타일 계산
+              type LogStyle = { color: string; bg: string; borderColor: string };
+              const styleMap: Record<string, LogStyle> = {
+                move:    { color: '#7dd3fc', bg: 'rgba(56,189,248,0.06)',  borderColor: '#0ea5e9' },
+                item:    { color: '#fbbf24', bg: 'rgba(251,191,36,0.08)',  borderColor: '#f59e0b' },
+                system:  { color: '#cbd5e1', bg: 'rgba(203,213,225,0.05)', borderColor: '#94a3b8' },
+                // combat subtypes
+                attack:  { color: '#fb923c', bg: 'rgba(251,146,60,0.10)',  borderColor: '#f97316' },
+                damage:  { color: '#f87171', bg: 'rgba(248,113,113,0.10)', borderColor: '#ef4444' },
+                heal:    { color: '#4ade80', bg: 'rgba(74,222,128,0.10)',  borderColor: '#22c55e' },
+                victory: { color: '#facc15', bg: 'rgba(250,204,21,0.12)',  borderColor: '#eab308' },
+                defeat:  { color: '#94a3b8', bg: 'rgba(148,163,184,0.08)', borderColor: '#64748b' },
+                flee:    { color: '#c4b5fd', bg: 'rgba(196,181,253,0.08)', borderColor: '#a78bfa' },
+                encounter:{ color: '#f87171', bg: 'rgba(248,113,113,0.08)',borderColor: '#ef4444' },
+                element: { color: '#a5b4fc', bg: 'rgba(165,180,252,0.08)', borderColor: '#818cf8' },
+                combat:  { color: '#fca5a5', bg: 'rgba(252,165,165,0.07)', borderColor: '#f87171' },
+              };
+
+              const key = log.type === 'combat' && log.subtype ? log.subtype : log.type;
+              const s = styleMap[key] ?? styleMap.system;
+
+              return (
+                <div
+                  key={log.id}
+                  style={{
+                    color: s.color,
+                    background: isLatest ? s.bg : 'transparent',
+                    fontSize: 11,
+                    lineHeight: '1.4',
+                    opacity: isLatest ? 1 : index >= actionLogs.length - 4 ? 0.75 : 0.5,
+                    transition: 'all 0.25s ease',
+                    padding: isLatest ? '3px 6px' : '1px 4px',
+                    borderLeft: `2px solid ${isLatest ? s.borderColor : 'transparent'}`,
+                    borderRadius: isLatest ? 3 : 0,
+                    wordBreak: 'break-all',
+                  }}
+                >
+                  {log.message}
+                </div>
+              );
+            })
           )}
         </div>
       </div>
@@ -1062,7 +1319,12 @@ export default function FPSCanvas() {
                 <button
                   onClick={() => {
                     const panel = document.getElementById('fps-inv-panel');
-                    if (panel) panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+                    const overlay = document.getElementById('fps-inv-overlay');
+                    if (panel) {
+                      const next = panel.style.display === 'flex' ? 'none' : 'flex';
+                      panel.style.display = next;
+                      if (overlay) overlay.style.display = next === 'flex' ? 'block' : 'none';
+                    }
                   }}
                   style={{
                     background:'rgba(30,41,59,0.95)', border:'1px solid #4f46e5',
@@ -1079,32 +1341,48 @@ export default function FPSCanvas() {
               </div>
 
               {/* 가운데: 방향키 그리드 */}
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,45px)', gridTemplateRows:'repeat(2,45px)', gap:3 }}>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,45px)', gridTemplateRows:'repeat(2,45px)', gap:3, position:'relative' }}>
+                {combatState && (
+                  <div style={{
+                    position:'absolute', inset:0, zIndex:2,
+                    background:'rgba(127,29,29,0.35)',
+                    border:'1px solid rgba(239,68,68,0.5)',
+                    borderRadius:4,
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                    pointerEvents:'all',
+                  }}>
+                    <span style={{ fontSize:11, color:'#fca5a5', fontWeight:'bold', textShadow:'0 1px 3px #000' }}>⚔️전투중</span>
+                  </div>
+                )}
                 <div />
                 <button
+                  disabled={!!combatState}
                   onPointerDown={() => handleButtonPress('up')}
                   onPointerUp={() => handleButtonRelease('up')}
                   onPointerLeave={() => handleButtonRelease('up')}
-                  style={{ ...padBtnStyle, ...(pressedButtons.has('up') ? padBtnActiveStyle : {}) }}
+                  style={{ ...padBtnStyle, ...(pressedButtons.has('up') ? padBtnActiveStyle : {}), ...(combatState ? padBtnDisabledStyle : {}) }}
                 >↑(W)</button>
                 <div />
                 <button
+                  disabled={!!combatState}
                   onPointerDown={() => handleButtonPress('left')}
                   onPointerUp={() => handleButtonRelease('left')}
                   onPointerLeave={() => handleButtonRelease('left')}
-                  style={{ ...padBtnStyle, ...(pressedButtons.has('left') ? padBtnActiveStyle : {}) }}
+                  style={{ ...padBtnStyle, ...(pressedButtons.has('left') ? padBtnActiveStyle : {}), ...(combatState ? padBtnDisabledStyle : {}) }}
                 >←(A)</button>
                 <button
+                  disabled={!!combatState}
                   onPointerDown={() => handleButtonPress('down')}
                   onPointerUp={() => handleButtonRelease('down')}
                   onPointerLeave={() => handleButtonRelease('down')}
-                  style={{ ...padBtnStyle, ...(pressedButtons.has('down') ? padBtnActiveStyle : {}) }}
+                  style={{ ...padBtnStyle, ...(pressedButtons.has('down') ? padBtnActiveStyle : {}), ...(combatState ? padBtnDisabledStyle : {}) }}
                 >↓(S)</button>
                 <button
+                  disabled={!!combatState}
                   onPointerDown={() => handleButtonPress('right')}
                   onPointerUp={() => handleButtonRelease('right')}
                   onPointerLeave={() => handleButtonRelease('right')}
-                  style={{ ...padBtnStyle, ...(pressedButtons.has('right') ? padBtnActiveStyle : {}) }}
+                  style={{ ...padBtnStyle, ...(pressedButtons.has('right') ? padBtnActiveStyle : {}), ...(combatState ? padBtnDisabledStyle : {}) }}
                 >→(D)</button>
               </div>
 
@@ -1116,7 +1394,11 @@ export default function FPSCanvas() {
                   disabled={!combatState && !chestState}
                   onClick={() => {
                     if (combatState) dispatch({ type:'COMBAT_ATTACK' });
-                    else if (chestState) dispatch({ type:'CHEST_TAKE_ALL' });
+                    else if (chestState) {
+                      const sel = selectedChestItemsRef.current;
+                      dispatch({ type:'CHEST_TAKE_SELECTED', itemIndices: sel });
+                      addActionLog('보물상자를 열었다.', 'item');
+                    }
                   }}
                   style={{
                     background: combatState ? 'rgba(127,29,29,0.85)' : chestState ? 'rgba(146,64,14,0.85)' : 'rgba(55,65,81,0.6)',
@@ -1126,7 +1408,7 @@ export default function FPSCanvas() {
                     cursor: (combatState || chestState) ? 'pointer' : 'not-allowed',
                     userSelect:'none', touchAction:'manipulation', fontWeight:'bold',
                     opacity: (combatState || chestState) ? 1 : 0.5,
-                  }}>{chestState ? '열기(space)' : '공격(space)'}</button>
+                  }}>{chestState ? `${selectedChestItems.length}개 획득(space)` : '공격(space)'}</button>
                 <button
                   disabled={!combatState && !chestState}
                   onClick={() => {
@@ -1155,10 +1437,21 @@ export default function FPSCanvas() {
         </div>
       </div>
 
+      {/* ── 인벤토리 dark overlay ── */}
+      <div id="fps-inv-overlay" style={{
+        display: 'none',
+        position: 'fixed', inset: 0,
+        background: 'rgba(0,0,0,0.65)',
+        zIndex: 49,
+        pointerEvents: 'none',
+      }} />
+
       {/* ── 인벤토리 패널 (전체 화면 오버레이) ── */}
       <div id="fps-inv-panel" style={{
+        width: 'calc(50%)',
+        height: 'calc(80%)',
         display:'none', flexDirection:'column',
-        position:'fixed', top:0, left:0, right:0, bottom:0,
+        position:'fixed', right:30, bottom:20,
         background:'rgba(10,10,30,0.98)', zIndex:50,
       }}>
         <div style={{
@@ -1170,7 +1463,9 @@ export default function FPSCanvas() {
           <button
             onClick={() => {
               const panel = document.getElementById('fps-inv-panel');
+              const overlay = document.getElementById('fps-inv-overlay');
               if (panel) panel.style.display = 'none';
+              if (overlay) overlay.style.display = 'none';
             }}
             style={{ background:'none', border:'none', color:'#94a3b8', fontSize:24, cursor:'pointer', lineHeight:1 }}>
             ✕
@@ -1420,3 +1715,82 @@ const padBtnActiveStyle: React.CSSProperties = {
   transform:'scale(0.95)',
   boxShadow:'inset 0 2px 4px rgba(0,0,0,0.3)',
 };
+
+const padBtnDisabledStyle: React.CSSProperties = {
+  background:'rgba(30,10,10,0.7)',
+  borderColor:'rgba(239,68,68,0.3)',
+  color:'rgba(252,165,165,0.3)',
+  cursor:'not-allowed',
+  opacity:0.5,
+};
+
+const BOSS_IDS = new Set(['dark_knight', 'dragon']);
+
+function VictoryOverlay({ monsterName, isBoss, onDone }: { monsterName: string; isBoss: boolean; onDone: () => void }) {
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+
+  useEffect(() => {
+    const delay = isBoss ? 3000 : 1200;
+    const t = setTimeout(() => onDoneRef.current(), delay);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!isBoss) return null;
+
+  return (
+    <div style={{
+      position: 'absolute',
+      inset: 0,
+      zIndex: 20,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'rgba(0,0,0,0.6)',
+      pointerEvents: 'none',
+    }}>
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 10,
+        animation: 'bossVictoryIn 0.45s cubic-bezier(0.16,1,0.3,1)',
+      }}>
+        <span style={{
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: '0.4em',
+          color: '#fbbf24',
+          textTransform: 'uppercase',
+          textShadow: '0 0 20px rgba(251,191,36,1), 0 2px 6px #000',
+          fontFamily: 'monospace',
+        }}>🏆 VICTORY</span>
+        <span style={{
+          fontSize: 32,
+          fontWeight: 900,
+          color: '#fff',
+          textShadow: '0 0 30px rgba(251,191,36,0.6), 0 4px 12px #000',
+          letterSpacing: '0.06em',
+        }}>{monsterName}</span>
+        <span style={{
+          fontSize: 12,
+          color: 'rgba(251,191,36,0.7)',
+          letterSpacing: '0.2em',
+          textTransform: 'uppercase',
+        }}>처치!</span>
+      </div>
+      <style>{`
+        @keyframes bossVictoryIn {
+          from { opacity: 0; transform: scale(0.7) translateY(20px); }
+          to   { opacity: 1; transform: scale(1)   translateY(0); }
+        }
+        @keyframes normalVictoryFloat {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
+}

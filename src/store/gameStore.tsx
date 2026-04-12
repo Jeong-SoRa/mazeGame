@@ -1,8 +1,13 @@
-import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
-import type { GameState, GameAction, PlayerState, CombatState, Character, Item, InventorySlot } from '../types/game.types';
-import { generateMap } from '../game/MazeGenerator';
+import React, { createContext, useContext, useEffect, useReducer, useRef } from 'react';
+import { calculateDrops, doPlayerAttack, getPlayerDefense, tryFlee, usePotion } from '../game/CombatSystem';
 import { ITEMS, craftItems } from '../game/ItemDatabase';
-import { doPlayerAttack, usePotion, tryFlee, calculateDrops, getPlayerDefense, getInventoryCapacity } from '../game/CombatSystem';
+import { generateMap } from '../game/MazeGenerator';
+import type { Character, CombatState, GameAction, GameState, InventorySlot, Item, PlayerState } from '../types/game.types';
+
+let _logIdCounter = 0;
+function nextLogId(): string {
+  return `log_${Date.now()}_${++_logIdCounter}`;
+}
 
 // ─── 인벤토리 스택 관리 함수들 ──────────────────────────────────────────────────
 function getMaxStackSize(item: Item): number {
@@ -70,10 +75,10 @@ function removeItemFromInventory(inventory: InventorySlot[], slotIndex: number, 
 
   return newInventory;
 }
-
+/* 
 function getInventorySlotCount(inventory: InventorySlot[]): number {
   return inventory.length;
-}
+} */
 
 // ─── 초기 플레이어 ───────────────────────────────────────────────────────────
 function createInitialPlayer(character?: Character): PlayerState {
@@ -208,7 +213,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
         // 액션 로그 추가
         const newLog = {
-          id: Date.now().toString(),
+          id: nextLogId(),
           type: 'combat' as const,
           message: `${monster.name}을 만났다.`,
           timestamp: Date.now()
@@ -225,28 +230,40 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
 
-      // 보물상자 체크
-      if (state.chests[key] && !state.chests[key].opened) {
-        const chest = state.chests[key];
-        const items = chest.items.map(id => ITEMS[id]).filter(Boolean);
+      // 보물상자 체크 - 한 칸 앞(이동 방향)에 상자가 있으면 인접 위치에서 트리거
+      const nxf = nx + dx, nyf = ny + dy;
+      const forwardKey = `${nxf},${nyf}`;
+      const forwardChest =
+        nyf >= 0 && nyf < state.mazeSize &&
+        nxf >= 0 && nxf < state.mazeSize &&
+        state.maze[nyf]?.[nxf] !== 0 &&
+        state.chests[forwardKey] && !state.chests[forwardKey].opened
+          ? state.chests[forwardKey]
+          : null;
 
-        // 액션 로그 추가
+      // 현재 목적지(nx,ny)에 상자가 있으면 그대로 트리거
+      const directChest = state.chests[key] && !state.chests[key].opened ? state.chests[key] : null;
+
+      const triggerChest = directChest ?? forwardChest;
+      const triggerKey = directChest ? key : forwardKey;
+      const triggerPos = directChest ? { x: nx, y: ny } : { x: nx, y: ny };
+
+      if (triggerChest) {
+        const items = triggerChest.items.map(id => ITEMS[id]).filter(Boolean);
         const newLog = {
-          id: Date.now().toString(),
+          id: nextLogId(),
           type: 'item' as const,
           message: '보물상자를 발견했다.',
           timestamp: Date.now()
         };
-        const updatedLogs = [...state.actionLogs, newLog];
-
         return {
           ...state,
-          playerPos: { x: nx, y: ny },
+          playerPos: triggerPos,
           steps: state.steps + 1,
           visitedCells: addVisited(state.visitedCells, nx, ny, state.mazeSize, state.maze),
-          chests: { ...state.chests, [key]: { ...chest, opened: true } },
-          chestState: { chestKey: key, items },
-          actionLogs: updatedLogs
+          chests: { ...state.chests, [triggerKey]: { ...triggerChest, opened: true } },
+          chestState: { chestKey: triggerKey, items },
+          actionLogs: [...state.actionLogs, newLog]
         };
       }
 
@@ -258,7 +275,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (nx === state.exitPos.x && ny === state.exitPos.y) {
         // 액션 로그 추가
         const newLog = {
-          id: Date.now().toString(),
+          id: nextLogId(),
           type: 'system' as const,
           message: `🎉 스테이지 ${state.stage} 클리어! (${state.steps + 1}/${state.optimalSteps}걸음)`,
           timestamp: Date.now()
@@ -277,24 +294,11 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         };
       }
 
-      // 일반 이동 액션 로그
-      const newLog = {
-        id: Date.now().toString(),
-        type: 'move' as const,
-        message: `(${nx}, ${ny})로 이동했다.`,
-        timestamp: Date.now()
-      };
-      const updatedLogs = [...state.actionLogs, newLog];
-      if (updatedLogs.length > 50) {
-        updatedLogs.shift();
-      }
-
       return {
         ...state,
         playerPos: newPos,
         steps: state.steps + 1,
         visitedCells: newVisited,
-        actionLogs: updatedLogs
       };
     }
 
@@ -303,6 +307,17 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 
       const result = doPlayerAttack(state.player, state.combatState.monster);
       const newLogs = [...state.combatState.log, ...result.logs];
+
+      // 전투 라운드 로그를 actionLogs에 추가
+      const roundActionLogs = result.logs.map((log, i) => ({
+        id: `${Date.now()}-${i}`,
+        type: 'combat' as const,
+        subtype: log.type === 'player' ? 'attack' as const
+                : log.type === 'monster' ? 'damage' as const
+                : 'element' as const,
+        message: log.text,
+        timestamp: Date.now()
+      }));
 
       if (result.monsterDied) {
         // 드랍 계산
@@ -317,18 +332,17 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         const newMonsters = { ...state.monsters };
         delete newMonsters[monsterKey];
 
-        // 전투 승리 액션 로그 추가
+        // 전투 승리 액션 로그
         const victoryLog = {
-          id: Date.now().toString(),
+          id: nextLogId(),
           type: 'combat' as const,
-          message: `${state.combatState.monster.name}와의 전투에서 승리했다.` +
-                   (drops.length > 0 ? ` 전리품: ${drops.map(i => i.name + '(' + (i.type === 'material' ? '재료' : '1') + ')').join(', ')}` : ''),
+          subtype: 'victory' as const,
+          message: `🏆 ${state.combatState.monster.name} 처치!` +
+                   (drops.length > 0 ? ` 전리품: ${drops.map(i => i.name).join(', ')}` : ''),
           timestamp: Date.now()
         };
-        const updatedActionLogs = [...state.actionLogs, victoryLog];
-        if (updatedActionLogs.length > 50) {
-          updatedActionLogs.shift();
-        }
+        const updatedActionLogs = [...state.actionLogs, ...roundActionLogs, victoryLog];
+        while (updatedActionLogs.length > 50) updatedActionLogs.shift();
 
         // 몬스터가 있던 칸으로 이동
         const [mx, my] = monsterKey.split(',').map(Number);
@@ -371,6 +385,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       }
 
       if (result.playerDied) {
+        const defeatLog = {
+          id: `${Date.now()}-defeat`,
+          type: 'combat' as const,
+          subtype: 'defeat' as const,
+          message: '💀 쓰러졌다...',
+          timestamp: Date.now()
+        };
+        const updatedActionLogs = [...state.actionLogs, ...roundActionLogs, defeatLog];
+        while (updatedActionLogs.length > 50) updatedActionLogs.shift();
+
         return {
           ...state,
           player: { ...state.player, hp: 0 },
@@ -380,8 +404,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             log: newLogs,
             phase: 'player-died',
           },
+          actionLogs: updatedActionLogs
         };
       }
+
+      const updatedActionLogs = [...state.actionLogs, ...roundActionLogs];
+      while (updatedActionLogs.length > 50) updatedActionLogs.shift();
 
       return {
         ...state,
@@ -392,6 +420,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           log: newLogs,
           phase: 'player-turn',
         },
+        actionLogs: updatedActionLogs
       };
     }
 
@@ -404,6 +433,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       const { hpAfter, log } = usePotion(state.player, slot.item);
       const newInventory = removeItemFromInventory(state.player.inventory, action.itemIndex, 1);
 
+      const healActionLog = {
+        id: nextLogId(),
+        type: 'combat' as const,
+        subtype: 'heal' as const,
+        message: log.text,
+        timestamp: Date.now()
+      };
+      const updatedActionLogs = [...state.actionLogs, healActionLog];
+      while (updatedActionLogs.length > 50) updatedActionLogs.shift();
+
       return {
         ...state,
         player: { ...state.player, hp: hpAfter, inventory: newInventory },
@@ -412,6 +451,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
           log: [...state.combatState.log, log],
           phase: 'player-turn',
         },
+        actionLogs: updatedActionLogs
       };
     }
 
@@ -419,6 +459,16 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       if (!state.combatState) return state;
 
       if (tryFlee(state.stage)) {
+        const fleeActionLog = {
+          id: nextLogId(),
+          type: 'combat' as const,
+          subtype: 'flee' as const,
+          message: '🏃 도망쳤다!',
+          timestamp: Date.now()
+        };
+        const updatedActionLogs = [...state.actionLogs, fleeActionLog];
+        while (updatedActionLogs.length > 50) updatedActionLogs.shift();
+
         return {
           ...state,
           combatState: {
@@ -426,6 +476,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             log: [...state.combatState.log, { text: '🏃 도망쳤습니다!', type: 'system' }],
             phase: 'fled',
           },
+          actionLogs: updatedActionLogs
         };
       } else {
         // 도망 실패 → 몬스터 공격
@@ -435,7 +486,25 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         const newHp = Math.max(0, state.player.hp - dmg);
         const fled_log = { text: `도망 실패! ${state.combatState.monster.name}의 공격! ${dmg} 데미지.`, type: 'monster' as const };
 
+        const fleeFailLog = {
+          id: nextLogId(),
+          type: 'combat' as const,
+          subtype: 'damage' as const,
+          message: `💨 도망 실패! 💢 ${dmg} 피해`,
+          timestamp: Date.now()
+        };
+
         if (newHp <= 0) {
+          const defeatLog = {
+            id: `${Date.now()}-defeat`,
+            type: 'combat' as const,
+            subtype: 'defeat' as const,
+            message: '💀 쓰러졌다...',
+            timestamp: Date.now()
+          };
+          const updatedActionLogs = [...state.actionLogs, fleeFailLog, defeatLog];
+          while (updatedActionLogs.length > 50) updatedActionLogs.shift();
+
           return {
             ...state,
             player: { ...state.player, hp: 0 },
@@ -444,8 +513,12 @@ function gameReducer(state: GameState, action: GameAction): GameState {
               log: [...state.combatState.log, fled_log, { text: '💀 당신은 쓰러졌습니다...', type: 'system' }],
               phase: 'player-died',
             },
+            actionLogs: updatedActionLogs
           };
         }
+
+        const updatedActionLogs = [...state.actionLogs, fleeFailLog];
+        while (updatedActionLogs.length > 50) updatedActionLogs.shift();
 
         return {
           ...state,
@@ -455,6 +528,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
             log: [...state.combatState.log, fled_log],
             phase: 'player-turn',
           },
+          actionLogs: updatedActionLogs
         };
       }
     }
@@ -484,7 +558,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       // 액션 로그 추가
       const acquiredItems = [...state.chestState.items];
       const chestLog = {
-        id: Date.now().toString(),
+        id: nextLogId(),
         type: 'item' as const,
         message: `보물상자에서 ${acquiredItems.map(item => item.name + '(' + (item.type === 'material' ? '재료' : '1') + ')').join(', ')}을 습득했다.`,
         timestamp: Date.now()
@@ -510,6 +584,42 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         player: { ...state.player, inventory: newInventory },
         chestState: null,
         message: `📦 ${state.chestState.items.length}개의 아이템을 획득했습니다!`,
+        actionLogs: updatedActionLogs
+      };
+    }
+
+    case 'CHEST_TAKE_SELECTED': {
+      if (!state.chestState) return state;
+      const { itemIndices } = action;
+      const selectedItems = itemIndices.map(i => state.chestState!.items[i]).filter(Boolean);
+      if (selectedItems.length === 0) return { ...state, chestState: null };
+
+      const { newInventory, overflow: pending } = addItemsToInventory(state.player.inventory, selectedItems);
+      const chestLog = {
+        id: nextLogId(),
+        type: 'item' as const,
+        message: `보물상자에서 ${selectedItems.map(i => i.name).join(', ')}을 습득했다.`,
+        timestamp: Date.now()
+      };
+      const updatedActionLogs = [...state.actionLogs, chestLog];
+      if (updatedActionLogs.length > 50) updatedActionLogs.shift();
+
+      if (pending.length > 0) {
+        return {
+          ...state,
+          player: { ...state.player, inventory: newInventory },
+          activeModal: 'discard',
+          chestState: null,
+          discardState: { pendingItems: pending },
+          message: `📦 ${selectedItems.length - pending.length}개 획득. 가방이 가득 찼습니다!`,
+          actionLogs: updatedActionLogs
+        };
+      }
+      return {
+        ...state,
+        player: { ...state.player, inventory: newInventory },
+        chestState: null,
+        message: `📦 ${selectedItems.length}개의 아이템을 획득했습니다!`,
         actionLogs: updatedActionLogs
       };
     }
@@ -665,7 +775,7 @@ function gameReducer(state: GameState, action: GameAction): GameState {
     case 'ADD_ACTION_LOG': {
       const { logType, message } = action;
       const newLog = {
-        id: Date.now().toString(),
+        id: nextLogId(),
         type: logType,
         message,
         timestamp: Date.now()

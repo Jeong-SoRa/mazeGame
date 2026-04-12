@@ -108,6 +108,7 @@ export interface DiscardState {
 export interface ActionLog {
   id: string;
   type: 'move' | 'combat' | 'item' | 'system';
+  subtype?: 'attack' | 'damage' | 'heal' | 'victory' | 'defeat' | 'flee' | 'encounter' | 'element';
   message: string;
   timestamp: number;
 }
@@ -161,6 +162,7 @@ export type GameAction =
   | { type: 'COMBAT_FLEE' }
   | { type: 'COMBAT_NEXT_PHASE' }
   | { type: 'CHEST_TAKE_ALL' }
+  | { type: 'CHEST_TAKE_SELECTED'; itemIndices: number[] }
   | { type: 'CHEST_CLOSE' }
   | { type: 'TOGGLE_CRAFT_ITEM'; inventoryIndex: number }
   | { type: 'CRAFT_ITEMS' }

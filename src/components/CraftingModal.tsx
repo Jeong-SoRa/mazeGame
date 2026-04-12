@@ -1,5 +1,6 @@
 import { useGame } from '../store/gameStore';
 import { RARITY_COLORS } from '../game/ItemDatabase';
+import { ItemImage } from './ItemImage';
 
 export default function CraftingModal() {
   const { state, dispatch } = useGame();
@@ -41,9 +42,10 @@ export default function CraftingModal() {
           gap: 12, marginBottom: 16, padding: 16,
           background: '#0f172a', borderRadius: 8, border: '1px solid #1e293b',
         }}>
-          <ItemSlot item={item1} label="재료 1" />
+          {/* item1가 없거나 item1.item이 없으면 null, 있으면 그 값을 넘긴다 */}
+          <ItemSlot item={item1?.item ?? null} label="재료 1" />
           <span style={{ color: '#6b7280', fontSize: 20 }}>+</span>
-          <ItemSlot item={item2} label="재료 2" />
+          <ItemSlot item={item2?.item ?? null} label="재료 2" />
           <span style={{ color: '#6b7280', fontSize: 20 }}>=</span>
           <div style={{
             width: 60, height: 60,
@@ -67,7 +69,7 @@ export default function CraftingModal() {
             </div>
             {craftResult.success && craftResult.item && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-                <span style={{ fontSize: 28 }}>{craftResult.item.emoji}</span>
+                <ItemImage itemId={craftResult.item.id} emoji={craftResult.item.emoji} size={28} />
                 <div>
                   <div style={{ color: RARITY_COLORS[craftResult.item.rarity], fontWeight: 700 }}>
                     {craftResult.item.name}
@@ -126,7 +128,7 @@ export default function CraftingModal() {
                 <div
                   key={i}
                   onClick={() => dispatch({ type: 'TOGGLE_CRAFT_ITEM', inventoryIndex: i })}
-                  title={`${item.name}: ${item.description}`}
+                  title={`${item.item.name}: ${item.item.description}`}
                   style={{
                     background: isSelected ? '#1e1b4b' : '#1a1a2e',
                     border: `1px solid ${isSelected ? '#818cf8' : '#2a2a3e'}`,
@@ -135,9 +137,9 @@ export default function CraftingModal() {
                     transition: 'all 0.1s',
                   }}
                 >
-                  <div style={{ fontSize: 22 }}>{item.emoji}</div>
-                  <div style={{ fontSize: 10, color: RARITY_COLORS[item.rarity], marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {item.name}
+                  <ItemImage itemId={item.item.id} emoji={item.item.emoji} size={22} />
+                  <div style={{ fontSize: 10, color: RARITY_COLORS[item.item.rarity], marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item.item.name}
                   </div>
                   {isSelected && <div style={{ color: '#818cf8', fontSize: 10 }}>✓선택</div>}
                 </div>
@@ -155,7 +157,7 @@ export default function CraftingModal() {
   );
 }
 
-function ItemSlot({ item, label }: { item: { name: string; emoji: string; rarity: string } | null; label: string }) {
+function ItemSlot({ item, label }: { item: { id: string; name: string; emoji: string; rarity: string } | null; label: string }) {
   return (
     <div style={{
       width: 60, height: 60,
@@ -166,7 +168,7 @@ function ItemSlot({ item, label }: { item: { name: string; emoji: string; rarity
     }}>
       {item ? (
         <>
-          <span style={{ fontSize: 24 }}>{item.emoji}</span>
+          <ItemImage itemId={item.id} emoji={item.emoji} size={24} />
           <span style={{ fontSize: 9, color: RARITY_COLORS[item.rarity as string], overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 54 }}>
             {item.name}
           </span>

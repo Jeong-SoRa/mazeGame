@@ -1,7 +1,8 @@
 import { useGame } from '../store/gameStore';
 import { getInventoryCapacity } from '../game/CombatSystem';
 import { RARITY_COLORS } from '../game/ItemDatabase';
-import type { Item } from '../types/game.types';
+import type { InventorySlot } from '../types/game.types';
+import { ItemImage } from './ItemImage';
 
 export default function Inventory() {
   const { state, dispatch } = useGame();
@@ -53,7 +54,8 @@ export default function Inventory() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {player.inventory.map((item: Item, i: number) => {
+            {player.inventory.map((slot: InventorySlot, i: number) => {
+              const item = slot.item;
               const isSelected = selectedCraftItems.includes(i);
               const rarityColor = RARITY_COLORS[item.rarity];
               const isUsable = item.type === 'potion' || (item.type === 'special' && !item.capacity);
@@ -75,10 +77,10 @@ export default function Inventory() {
                     transition: 'all 0.1s',
                   }}
                 >
-                  <span style={{ fontSize: 18, lineHeight: 1 }}>{item.emoji}</span>
+                  <ItemImage itemId={item.id} emoji={item.emoji} size={18} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 11, color: rarityColor, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {item.name}
+                      {item.name}{slot.quantity > 1 && <span style={{ color: '#94a3b8', fontWeight: 400 }}> ×{slot.quantity}</span>}
                     </div>
                     <div style={{ fontSize: 10, color: '#6b7280' }}>
                       {item.type === 'weapon' && `⚔️+${item.attack}`}

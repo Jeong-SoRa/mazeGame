@@ -1,6 +1,7 @@
 import { useGame } from '../store/gameStore';
 import { getInventoryCapacity } from '../game/CombatSystem';
 import { RARITY_COLORS } from '../game/ItemDatabase';
+import { ItemImage } from './ItemImage';
 
 export default function DiscardModal() {
   const { state, dispatch } = useGame();
@@ -34,7 +35,7 @@ export default function DiscardModal() {
                 background: '#1c2a1a', border: '1px solid #4ade80',
                 borderRadius: 6, padding: '6px 10px',
               }}>
-                <span style={{ fontSize: 18 }}>{item.emoji}</span>
+                <ItemImage itemId={item.id} emoji={item.emoji} size={18} />
                 <div style={{ flex: 1 }}>
                   <span style={{ color: RARITY_COLORS[item.rarity], fontSize: 12, fontWeight: 600 }}>{item.name}</span>
                   <div style={{ color: '#6b7280', fontSize: 10 }}>
@@ -72,16 +73,16 @@ export default function DiscardModal() {
                 background: '#1e293b', border: '1px solid #374151',
                 borderRadius: 6, padding: '6px 10px',
               }}>
-                <span style={{ fontSize: 18 }}>{item.emoji}</span>
+                <ItemImage itemId={item.item.id} emoji={item.item.emoji} size={18} />
                 <div style={{ flex: 1 }}>
-                  <span style={{ color: RARITY_COLORS[item.rarity], fontSize: 12, fontWeight: 600 }}>{item.name}</span>
+                  <span style={{ color: RARITY_COLORS[item.item.rarity], fontSize: 12, fontWeight: 600 }}>{item.item.name}</span>
                   <div style={{ color: '#6b7280', fontSize: 10 }}>
-                    {item.type === 'weapon' && `⚔️ +${item.attack}`}
-                    {item.type === 'armor' && `🛡️ +${item.defense}`}
-                    {item.type === 'potion' && `❤️ +${item.heal}`}
-                    {item.capacity && `🎒 +${item.capacity}칸`}
-                    {item.type === 'material' && '재료'}
-                    {item.type === 'special' && !item.capacity && '특수'}
+                    {item.item.type === 'weapon' && `⚔️ +${item.item.attack}`}
+                    {item.item.type === 'armor' && `🛡️ +${item.item.defense}`}
+                    {item.item.type === 'potion' && `❤️ +${item.item.heal}`}
+                    {item.item.capacity && `🎒 +${item.item.capacity}칸`}
+                    {item.item.type === 'material' && '재료'}
+                    {item.item.type === 'special' && !item.item.capacity && '특수'}
                   </div>
                 </div>
                 <button

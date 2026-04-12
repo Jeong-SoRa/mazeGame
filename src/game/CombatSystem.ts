@@ -7,25 +7,25 @@ function rand(min: number, max: number): number {
 }
 
 export function getPlayerAttack(player: PlayerState): number {
-  const weaponBonus = player.inventory.reduce((sum, item) => sum + (item.attack ?? 0), 0);
+  const weaponBonus = player.inventory.reduce((sum, item) => sum + (item.item.attack ?? 0), 0);
   return player.baseAttack + weaponBonus;
 }
 
 export function getPlayerDefense(player: PlayerState): number {
-  const armorBonus = player.inventory.reduce((sum, item) => sum + (item.defense ?? 0), 0);
+  const armorBonus = player.inventory.reduce((sum, item) => sum + (item.item.defense ?? 0), 0);
   return player.baseDefense + armorBonus;
 }
 
 // 인벤토리 최대 용량 (기본 10 + 주머니 5씩 추가)
 export function getInventoryCapacity(player: PlayerState): number {
-  const pouches = player.inventory.filter(item => item.id === 'pouch').length;
+  const pouches = player.inventory.filter(item => item.item.id === 'pouch').length;
   return 10 + pouches * 5;
 }
 
 // 플레이어의 실제 공격 속성 (인벤토리 첫 번째 무기 속성 우선, 없으면 캐릭터 속성)
 export function getPlayerAttackElement(player: PlayerState): Element {
-  const weapon = player.inventory.find(item => item.type === 'weapon' && item.element);
-  return weapon?.element ?? player.element;
+  const weapon = player.inventory.find(item => item.item.type === 'weapon' && item.item.element);
+  return weapon?.item.element ?? player.element;
 }
 
 // 속성 상성을 고려한 데미지 계산
@@ -90,8 +90,8 @@ export function doPlayerAttack(player: PlayerState, monster: MonsterInstance): A
   const baseDmgToPlayer = Math.max(1, mAtk - pDef + rand(-2, 3));
 
   // 플레이어의 방어 속성 (인벤토리 첫 번째 방어구 속성 우선, 없으면 캐릭터 속성)
-  const armor = player.inventory.find(item => item.type === 'armor' && item.element);
-  const playerDefenseElement = armor?.element ?? player.element;
+  const armor = player.inventory.find(item => item.item.type === 'armor' && item.item.element);
+  const playerDefenseElement = armor?.item.element ?? player.element;
 
   const { damage: dmgToPlayer } = calculateDamageWithElement(
     baseDmgToPlayer,

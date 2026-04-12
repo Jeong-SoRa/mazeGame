@@ -1,4 +1,5 @@
 import { useGame } from '../store/gameStore';
+import { ItemImage } from './ItemImage';
 
 export default function CombatModal() {
   const { state, dispatch } = useGame();
@@ -8,7 +9,7 @@ export default function CombatModal() {
   const { monster, log, phase } = combatState;
   const hpPct = monster.currentHp / monster.maxHp;
   const playerHpPct = player.hp / player.maxHp;
-  const potions = player.inventory.map((item, i) => ({ item, i })).filter(({ item }) => item.type === 'potion');
+  const potions = player.inventory.map((item, i) => ({ item, i })).filter(({ item }) => item.item.type === 'potion');
 
   const isDone = phase === 'player-won' || phase === 'player-died' || phase === 'fled';
 
@@ -99,7 +100,7 @@ export default function CombatModal() {
                         padding: '5px 10px', fontSize: 12, cursor: 'pointer',
                       }}
                     >
-                      {item.emoji} {item.name} (+{item.heal}HP)
+                      <ItemImage itemId={item.item.id} emoji={item.item.emoji} size={14} style={{ marginRight: 4 }} /> {item.item.name} (+{item.item.heal}HP)
                     </button>
                   ))}
                 </div>

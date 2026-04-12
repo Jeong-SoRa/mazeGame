@@ -35,7 +35,7 @@ const characters: CharacterWithImage[] = [
     name: '식빵 고양이',
     image: 'player/player_bread_cat.png',
     element: 'fire',
-    description: '언제나 식빵만 굽는 고양이, 왜인지 높은 공격력과 스피드가 특징',
+    description: '언제나 식빵만 굽는 고양이, 가장 고양이스럽게 균형잡힌 고양이',
     stats: { hp: 85, mp: 65, attack: 9, defense: 2 }
   }
 ];
@@ -170,15 +170,14 @@ export default function CharacterSelect({ user }: Props) {
             animation: 'rainbow 3s ease-in-out infinite, pixelGlow 2s ease-in-out infinite alternate',
             textTransform: 'uppercase',
             transform: 'scaleY(1.1)',
-            WebkitTextStroke: '2px #000',
             textShadow: `
-              -2px -2px 0 #000,
-              2px -2px 0 #000,
-              -2px 2px 0 #000,
-              2px 2px 0 #000,
+              -1px -1px 0 rgba(0,0,0,0.6),
+              1px -1px 0 rgba(0,0,0,0.6),
+              -1px 1px 0 rgba(0,0,0,0.6),
+              1px 1px 0 rgba(0,0,0,0.6),
               0 0 20px rgba(255, 107, 107, 0.6),
               0 0 40px rgba(255, 217, 61, 0.4),
-              4px 4px 0 rgba(0, 0, 0, 0.5)
+              3px 3px 0 rgba(0, 0, 0, 0.4)
             `,
             filter: 'contrast(1.2)',
           }}>
@@ -254,23 +253,28 @@ export default function CharacterSelect({ user }: Props) {
                   }
                 }}
               >
-                <div style={{ width: 120, height: 120, margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <img
-                    src={character.image}
-                    alt={character.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'pixelated' }}
-                    onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; (e.currentTarget.nextSibling as HTMLElement).style.display = 'block'; }}
-                  />
+                {/* 이미지 + 이름/속성 가로 배치 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+                  <div style={{ width: 80, height: 80, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <img
+                      src={character.image}
+                      alt={character.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'pixelated' }}
+                      onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; (e.currentTarget.nextSibling as HTMLElement).style.display = 'block'; }}
+                    />
+                  </div>
+                  <div style={{ textAlign: 'left' }}>
+                    <h3 style={{ color: '#fff', fontSize: 18, fontWeight: 700, margin: '0 0 2px 0' }}>
+                      {character.name}
+                    </h3>
+                    <div style={{ color: '#a78bfa', fontSize: 13 }}>
+                      {getElementEmoji(character.element)} {getElementName(character.element)} 속성
+                    </div>
+                    <p style={{ color: '#9ca3af', fontSize: 12, lineHeight: 1.4, marginTop: 4, marginBottom: 14, textAlign: 'left' }}>
+                      {character.description}
+                    </p>
+                  </div>
                 </div>
-                <h3 style={{ color: '#fff', fontSize: 20, fontWeight: 700, marginBottom: 8 }}>
-                  {character.name}
-                </h3>
-                <div style={{ color: '#a78bfa', fontSize: 14, marginBottom: 8 }}>
-                  {getElementEmoji(character.element)} {getElementName(character.element)} 속성
-                </div>
-                <p style={{ color: '#9ca3af', fontSize: 14, lineHeight: 1.4, marginBottom: 16 }}>
-                  {character.description}
-                </p>
 
                 {/* 스탯 정보 */}
                 <div style={{

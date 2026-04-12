@@ -65,6 +65,12 @@ export default function FPSCanvas() {
   // 버튼 상태 관리
   const [pressedButtons, setPressedButtons] = useState<Set<string>>(new Set());
   const [showHelp, setShowHelp] = useState<boolean>(false);
+  const [isMobile, setIsMobile] = useState<boolean>(window.innerWidth < 640);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const buttonIntervalRef = useRef<Record<string, number>>({});
 
   // ── refs (렌더링 루프용) ────────────────────────────────────────────────
@@ -759,6 +765,7 @@ export default function FPSCanvas() {
 
   const atk = getPlayerAttack(player);
   const def = getPlayerDefense(player);
+  const capacity = getInventoryCapacity(player);
   const hpPct  = (player.hp / player.maxHp) * 100;
   const mpPct  = (player.mp / player.maxMp) * 100;
   const hpColor = hpPct > 60 ? '#22c55e' : hpPct > 30 ? '#f59e0b' : '#ef4444';
@@ -789,22 +796,22 @@ export default function FPSCanvas() {
       <div style={{
         background: 'rgba(26,26,46,0.9)',
         borderBottom: '1px solid #2a2a3e',
-        padding: '8px 16px',
+        padding: isMobile ? '5px 8px' : '8px 16px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexShrink: 0,
         fontSize: '12px',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          <span style={{ color: '#a78bfa', fontWeight: 700, fontSize: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 8 : 20 }}>
+          <span style={{ color: '#a78bfa', fontWeight: 700, fontSize: isMobile ? 12 : 14 }}>
            Stage {stage}
           </span>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-            <span style={{ color: '#9ca3af', fontSize: 12 }}>
+          <div style={{ display: 'flex', gap: isMobile ? 8 : 16, alignItems: 'center' }}>
+            <span style={{ color: '#9ca3af', fontSize: isMobile ? 10 : 12 }}>
               ⏱ <span style={{ color: '#fff' }}>{formatTime(elapsedSeconds)}</span>
             </span>
-            <span style={{ color: '#9ca3af', fontSize: 12 }}>
+            <span style={{ color: '#9ca3af', fontSize: isMobile ? 10 : 12 }}>
               👣 <span style={{
                 color: steps <= optimalSteps ? '#22c55e' : steps <= optimalSteps + 5 ? '#f59e0b' : '#ef4444',
                 fontWeight: 700
@@ -813,31 +820,26 @@ export default function FPSCanvas() {
               </span>
               <span style={{ color: '#6b7280' }}>/{optimalSteps}</span>
             </span>
-            <span style={{ color: '#9ca3af', fontSize: 12 }}>
+            <span style={{ color: '#9ca3af', fontSize: isMobile ? 11 : 12 }}>
               🎯 최적: <span style={{ color: '#22c55e', fontWeight: 700 }}>{optimalSteps}</span>
             </span>
-            {/* 표시할 필요없는 정보같음 
-            <span style={{ color: '#9ca3af', fontSize: 12 }}>
-              🚪 출구: <span style={{ color: '#67e8f9', fontWeight: 700 }}>({exitPos.x},{exitPos.y})</span>
-            </span>
-             */}
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: isMobile ? 4 : 8 }}>
           <button
             onClick={() => dispatch({ type: 'RETURN_TO_STAGE_SELECT' })}
             style={{
               background: 'transparent',
               border: '1px solid #4338ca',
               color: '#a5b4fc',
-              padding: '4px 8px',
+              padding: isMobile ? '3px 6px' : '4px 8px',
               borderRadius: 4,
-              fontSize: 10,
+              fontSize: isMobile ? 9 : 10,
               cursor: 'pointer',
             }}
           >
-            스테이지 선택
+            {isMobile ? '스테이지' : '스테이지 선택'}
           </button>
           <button
             onClick={() => dispatch({ type: 'RETURN_TO_SELECT' })}
@@ -845,28 +847,30 @@ export default function FPSCanvas() {
               background: 'transparent',
               border: '1px solid #dc2626',
               color: '#fca5a5',
-              padding: '4px 8px',
+              padding: isMobile ? '3px 6px' : '4px 8px',
               borderRadius: 4,
-              fontSize: 10,
+              fontSize: isMobile ? 9 : 10,
               cursor: 'pointer',
             }}
           >
             나가기
           </button>
-          <button
-            onClick={() => setShowHelp(prev => !prev)}
-            style={{
-              background: 'transparent',
-              border: '1px solid #0891b2',
-              color: '#67e8f9',
-              padding: '4px 8px',
-              borderRadius: 4,
-              fontSize: 10,
-              cursor: 'pointer',
-            }}
-          >
-            도움(H)
-          </button>
+          {!isMobile && (
+            <button
+              onClick={() => setShowHelp(prev => !prev)}
+              style={{
+                background: 'transparent',
+                border: '1px solid #0891b2',
+                color: '#67e8f9',
+                padding: '4px 8px',
+                borderRadius: 4,
+                fontSize: 10,
+                cursor: 'pointer',
+              }}
+            >
+              도움(H)
+            </button>
+          )}
         </div>
       </div>
 
@@ -1101,7 +1105,7 @@ export default function FPSCanvas() {
       {/* ── 액션 로그 영역 ── */}
       <div style={{
         flexShrink: 0,
-        height: '100px',
+        height: isMobile ? '62px' : '100px',
         background: 'linear-gradient(to bottom, rgba(15,23,42,0.95), rgba(30,41,59,0.95))',
         borderTop: '1px solid #334155',
         borderBottom: '1px solid #334155',
@@ -1256,140 +1260,36 @@ export default function FPSCanvas() {
           boxSizing:'border-box',
         }}>
 
-          {/* 하단 컨트롤 영역: 좌 30% 스테이터스 / 우 70% 컨트롤 */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'stretch',
-            padding: '8px 0',
-            gap: 0,
-            width: '100%',
-          }}>
-            {/* 왼쪽 30%: 플레이어 스테이터스 */}
-            <div style={{
-              width: '30%',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              background: 'rgba(30,41,59,0.8)',
-              border: '1px solid #374151',
-              borderRadius: 8,
-              padding: '6px 8px',
-              gap: 6,
-              boxSizing: 'border-box',
-            }}>
-              {/* HP */}
-              <div style={{ display:'flex', alignItems:'center', gap:4 }}>
-                <span style={{ fontSize:12 }}>❤️</span>
-                <div style={{ flex:1, background:'#1e293b', borderRadius:4, height:7, overflow:'hidden' }}>
-                  <div style={{ width:`${hpPct}%`, height:'100%', background:hpColor, borderRadius:4, transition:'width 0.3s' }} />
-                </div>
-                <span style={{ color:hpColor, fontSize:10, whiteSpace:'nowrap', width:44, textAlign:'right' }}>{player.hp}/{player.maxHp}</span>
-              </div>
-              {/* MP */}
-              <div style={{ display:'flex', alignItems:'center', gap:4 }}>
-                <span style={{ fontSize:12 }}>💧</span>
-                <div style={{ flex:1, background:'#1e293b', borderRadius:4, height:7, overflow:'hidden' }}>
-                  <div style={{ width:`${mpPct}%`, height:'100%', background:'#3b82f6', borderRadius:4, transition:'width 0.3s' }} />
-                </div>
-                <span style={{ color:'#3b82f6', fontSize:10, whiteSpace:'nowrap', width:44, textAlign:'right' }}>{player.mp}/{player.maxMp}</span>
-              </div>
-              {/* 스탯 */}
-              <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', fontSize:10 }}>
-                <span>{getElementEmoji(player.element)} <b style={{ color:'#a78bfa' }}>{getElementName(player.element)}</b></span>
-                <span>⚔️ <b style={{ color:'#fca5a5' }}>{atk}</b></span>
-                <span>🛡️ <b style={{ color:'#93c5fd' }}>{def}</b></span>
-                <span>🎒 <b style={{ color: player.inventory.length >= 20 ? '#ef4444' : '#fbbf24' }}>{player.inventory.length}/20</b></span>
-              </div>
-            </div>
+          {/* 하단 컨트롤 영역 */}
+          {isMobile ? (
+            /* ── 모바일: 상단 스테이터스 바 + 하단 [액션버튼 2x2] [방향키] ── */
+            <div style={{ display:'flex', flexDirection:'column', gap:4, width:'100%', padding:'4px 0' }}>
 
-            {/* 오른쪽 70%: 컨트롤 영역 */}
-            <div style={{
-              width: '70%',
-              display: 'flex',
-              alignItems: 'flex-start',
-              justifyContent: 'right',
-              paddingLeft: 8,
-              gap: 8,
-              boxSizing: 'border-box',
-            }}>
-              {/* 왼쪽: 가방/만들기 버튼 */}
-              <div style={{ 
-                padding: '0 12px 0 0',
-                display:'flex', flexDirection:'column', gap:15}}>
-                <button
-                  onClick={() => {
-                    const panel = document.getElementById('fps-inv-panel');
-                    const overlay = document.getElementById('fps-inv-overlay');
-                    if (panel) {
-                      const next = panel.style.display === 'flex' ? 'none' : 'flex';
-                      panel.style.display = next;
-                      if (overlay) overlay.style.display = next === 'flex' ? 'block' : 'none';
-                    }
-                  }}
-                  style={{
-                    background:'rgba(30,41,59,0.95)', border:'1px solid #4f46e5',
-                    color:'#a5b4fc', fontSize:12, borderRadius:6, padding:'10px 14px',
-                    cursor:'pointer', userSelect:'none', touchAction:'manipulation',
-                  }}>가방(E)</button>
-                <button
-                  onClick={() => dispatch({ type:'SET_MODAL', modal:'crafting' })}
-                  style={{
-                    background:'rgba(30,41,59,0.95)', border:'1px solid #7c3aed',
-                    color:'#c4b5fd', fontSize:12, borderRadius:6, padding:'10px 14px',
-                    cursor:'pointer', userSelect:'none', touchAction:'manipulation',
-                  }}>만들기(Q)</button>
-              </div>
-
-              {/* 가운데: 방향키 그리드 */}
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,45px)', gridTemplateRows:'repeat(2,45px)', gap:3, position:'relative' }}>
-                {combatState && (
-                  <div style={{
-                    position:'absolute', inset:0, zIndex:2,
-                    background:'rgba(127,29,29,0.35)',
-                    border:'1px solid rgba(239,68,68,0.5)',
-                    borderRadius:4,
-                    display:'flex', alignItems:'center', justifyContent:'center',
-                    pointerEvents:'all',
-                  }}>
-                    <span style={{ fontSize:11, color:'#fca5a5', fontWeight:'bold', textShadow:'0 1px 3px #000' }}>⚔️전투중</span>
-                  </div>
-                )}
-                <div />
-                <button
-                  disabled={!!combatState}
-                  onPointerDown={() => handleButtonPress('up')}
-                  onPointerUp={() => handleButtonRelease('up')}
-                  onPointerLeave={() => handleButtonRelease('up')}
-                  style={{ ...padBtnStyle, ...(pressedButtons.has('up') ? padBtnActiveStyle : {}), ...(combatState ? padBtnDisabledStyle : {}) }}
-                >↑(W)</button>
-                <div />
-                <button
-                  disabled={!!combatState}
-                  onPointerDown={() => handleButtonPress('left')}
-                  onPointerUp={() => handleButtonRelease('left')}
-                  onPointerLeave={() => handleButtonRelease('left')}
-                  style={{ ...padBtnStyle, ...(pressedButtons.has('left') ? padBtnActiveStyle : {}), ...(combatState ? padBtnDisabledStyle : {}) }}
-                >←(A)</button>
-                <button
-                  disabled={!!combatState}
-                  onPointerDown={() => handleButtonPress('down')}
-                  onPointerUp={() => handleButtonRelease('down')}
-                  onPointerLeave={() => handleButtonRelease('down')}
-                  style={{ ...padBtnStyle, ...(pressedButtons.has('down') ? padBtnActiveStyle : {}), ...(combatState ? padBtnDisabledStyle : {}) }}
-                >↓(S)</button>
-                <button
-                  disabled={!!combatState}
-                  onPointerDown={() => handleButtonPress('right')}
-                  onPointerUp={() => handleButtonRelease('right')}
-                  onPointerLeave={() => handleButtonRelease('right')}
-                  style={{ ...padBtnStyle, ...(pressedButtons.has('right') ? padBtnActiveStyle : {}), ...(combatState ? padBtnDisabledStyle : {}) }}
-                >→(D)</button>
-              </div>
-
-              {/* 오른쪽: 공격/열기 · 도망/떠나기 버튼 */}
+              {/* 스테이터스 가로 바 */}
               <div style={{
-                padding: '0 0 0 12px',
-                display:'flex', flexDirection:'column', gap:15 }}>
+                display:'flex', alignItems:'center', gap:8,
+                background:'rgba(30,41,59,0.8)', border:'1px solid #374151',
+                borderRadius:8, padding:'5px 10px', boxSizing:'border-box', width:'100%',
+              }}>
+                {/* HP */}
+                <span style={{ color:hpColor, fontSize:11, whiteSpace:'nowrap', flexShrink:0 }}>❤️ {player.hp}/{player.maxHp}</span>
+                {/* MP */}
+                <span style={{ color:'#60a5fa', fontSize:11, whiteSpace:'nowrap', flexShrink:0 }}>💧 {player.mp}/{player.maxMp}</span>
+                {/* 스탯 */}
+                <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0, fontSize:10 }}>
+                  <span>{getElementEmoji(player.element)} <b style={{ color:'#a78bfa' }}>{getElementName(player.element)}</b></span>
+                  <span>⚔️<b style={{ color:'#fca5a5' }}>{atk}</b></span>
+                  <span>🛡️<b style={{ color:'#93c5fd' }}>{def}</b></span>
+                  <span>🎒<b style={{ color: player.inventory.length >= capacity ? '#ef4444' : '#fbbf24' }}>{player.inventory.length}/{capacity}</b></span>
+                </div>
+              </div>
+
+              {/* 버튼 행: [액션버튼 2x2] [방향키] */}
+              <div style={{ display:'flex', justifyContent:'center', gap:8 }}>
+
+              {/* 액션 버튼 2x2 (126px = 방향키와 동일) */}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gridTemplateRows:'repeat(2,40px)', gap:3, width:126, flexShrink:0 }}>
+                
                 <button
                   disabled={!combatState && !chestState}
                   onClick={() => {
@@ -1404,11 +1304,11 @@ export default function FPSCanvas() {
                     background: combatState ? 'rgba(127,29,29,0.85)' : chestState ? 'rgba(146,64,14,0.85)' : 'rgba(55,65,81,0.6)',
                     border: `1px solid ${combatState ? '#ef4444' : chestState ? '#f59e0b' : '#4b5563'}`,
                     color: combatState ? '#fca5a5' : chestState ? '#fde68a' : '#6b7280',
-                    fontSize:12, borderRadius:6, padding:'10px 10px',
+                    fontSize:10, borderRadius:6,
                     cursor: (combatState || chestState) ? 'pointer' : 'not-allowed',
                     userSelect:'none', touchAction:'manipulation', fontWeight:'bold',
                     opacity: (combatState || chestState) ? 1 : 0.5,
-                  }}>{chestState ? `${selectedChestItems.length}개 획득(space)` : '공격(space)'}</button>
+                  }}>{chestState ? `${selectedChestItems.length}개 획득` : '공격'}</button>
                 <button
                   disabled={!combatState && !chestState}
                   onClick={() => {
@@ -1419,21 +1319,180 @@ export default function FPSCanvas() {
                     background: combatState ? 'rgba(20,83,45,0.85)' : chestState ? 'rgba(30,41,59,0.85)' : 'rgba(55,65,81,0.6)',
                     border: `1px solid ${combatState ? '#22c55e' : chestState ? '#60a5fa' : '#4b5563'}`,
                     color: combatState ? '#86efac' : chestState ? '#bfdbfe' : '#6b7280',
-                    fontSize:12, borderRadius:6, padding:'10px 10px',
+                    fontSize:10, borderRadius:6,
                     cursor: (combatState || chestState) ? 'pointer' : 'not-allowed',
                     userSelect:'none', touchAction:'manipulation', fontWeight:'bold',
                     opacity: (combatState || chestState) ? 1 : 0.5,
                   }}>
-                  {chestState ? '떠나기(Z)' : '도망(Z)'}
+                  {chestState ? '떠나기' : '도망'}
                   {combatState && (
-                    <span style={{ fontSize:9, fontWeight:'normal', color:'#f87171', marginLeft:3 }}>
+                    <span style={{ fontSize:8, fontWeight:'normal', color:'#f87171', marginLeft:2 }}>
                       {Math.round(Math.max(0.25, 0.55 - stage * 0.01) * 100)}%
                     </span>
                   )}
+                  
                 </button>
+                <button
+                  onClick={() => {
+                    const panel = document.getElementById('fps-inv-panel');
+                    const overlay = document.getElementById('fps-inv-overlay');
+                    if (panel) {
+                      const next = panel.style.display === 'flex' ? 'none' : 'flex';
+                      panel.style.display = next;
+                      if (overlay) overlay.style.display = next === 'flex' ? 'block' : 'none';
+                    }
+                  }}
+                  style={{ background:'rgba(30,41,59,0.95)', border:'1px solid #4f46e5', color:'#a5b4fc', fontSize:10, borderRadius:6, cursor:'pointer', userSelect:'none', touchAction:'manipulation' }}>가방</button>
+                <button
+                  onClick={() => dispatch({ type:'SET_MODAL', modal:'crafting' })}
+                  style={{ background:'rgba(30,41,59,0.95)', border:'1px solid #7c3aed', color:'#c4b5fd', fontSize:10, borderRadius:6, cursor:'pointer', userSelect:'none', touchAction:'manipulation' }}>만들기</button>
+                
+              </div>
+
+              {/* 방향키 (3×40 + 2×3gap = 126px) */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,40px)', gridTemplateRows:'repeat(2,40px)', gap:3, position:'relative', flexShrink:0 }}>
+                {combatState && (
+                  <div style={{
+                    position:'absolute', inset:0, zIndex:2,
+                    background:'rgba(127,29,29,0.35)', border:'1px solid rgba(239,68,68,0.5)',
+                    borderRadius:4, display:'flex', alignItems:'center', justifyContent:'center', pointerEvents:'all',
+                  }}>
+                    <span style={{ fontSize:9, color:'#fca5a5', fontWeight:'bold', textShadow:'0 1px 3px #000' }}>⚔️전투중</span>
+                  </div>
+                )}
+                <div />
+                <button disabled={!!combatState} onPointerDown={() => handleButtonPress('up')} onPointerUp={() => handleButtonRelease('up')} onPointerLeave={() => handleButtonRelease('up')} style={{ ...padBtnStyle, ...(pressedButtons.has('up') ? padBtnActiveStyle : {}), ...(combatState ? padBtnDisabledStyle : {}), width:40, height:40, fontSize:12 }}>↑</button>
+                <div />
+                <button disabled={!!combatState} onPointerDown={() => handleButtonPress('left')} onPointerUp={() => handleButtonRelease('left')} onPointerLeave={() => handleButtonRelease('left')} style={{ ...padBtnStyle, ...(pressedButtons.has('left') ? padBtnActiveStyle : {}), ...(combatState ? padBtnDisabledStyle : {}), width:40, height:40, fontSize:12 }}>←</button>
+                <button disabled={!!combatState} onPointerDown={() => handleButtonPress('down')} onPointerUp={() => handleButtonRelease('down')} onPointerLeave={() => handleButtonRelease('down')} style={{ ...padBtnStyle, ...(pressedButtons.has('down') ? padBtnActiveStyle : {}), ...(combatState ? padBtnDisabledStyle : {}), width:40, height:40, fontSize:12 }}>↓</button>
+                <button disabled={!!combatState} onPointerDown={() => handleButtonPress('right')} onPointerUp={() => handleButtonRelease('right')} onPointerLeave={() => handleButtonRelease('right')} style={{ ...padBtnStyle, ...(pressedButtons.has('right') ? padBtnActiveStyle : {}), ...(combatState ? padBtnDisabledStyle : {}), width:40, height:40, fontSize:12 }}>→</button>
+              </div>
+
               </div>
             </div>
-          </div>
+          ) : (
+            /* ── PC: 좌 30% 스테이터스 / 우 70% 컨트롤 ── */
+            <div style={{ display:'flex', alignItems:'stretch', padding:'8px 0', gap:0, width:'100%' }}>
+
+              {/* 왼쪽 30%: 플레이어 스테이터스 */}
+              <div style={{
+                width:'30%',
+                display:'flex', flexDirection:'column', justifyContent:'center',
+                background:'rgba(30,41,59,0.8)', border:'1px solid #374151',
+                borderRadius:8, padding:'6px 8px', gap:6, boxSizing:'border-box',
+              }}>
+                {/* HP */}
+                <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                  <span style={{ fontSize:12 }}>❤️</span>
+                  <div style={{ flex:1, background:'#1e293b', borderRadius:4, height:7, overflow:'hidden' }}>
+                    <div style={{ width:`${hpPct}%`, height:'100%', background:hpColor, borderRadius:4, transition:'width 0.3s' }} />
+                  </div>
+                  <span style={{ color:hpColor, fontSize:10, whiteSpace:'nowrap', width:44, textAlign:'right' }}>{player.hp}/{player.maxHp}</span>
+                </div>
+                {/* MP */}
+                <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                  <span style={{ fontSize:12 }}>💧</span>
+                  <div style={{ flex:1, background:'#1e293b', borderRadius:4, height:7, overflow:'hidden' }}>
+                    <div style={{ width:`${mpPct}%`, height:'100%', background:'#3b82f6', borderRadius:4, transition:'width 0.3s' }} />
+                  </div>
+                  <span style={{ color:'#3b82f6', fontSize:10, whiteSpace:'nowrap', width:44, textAlign:'right' }}>{player.mp}/{player.maxMp}</span>
+                </div>
+                {/* 스탯 */}
+                <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', fontSize:10 }}>
+                  <span>{getElementEmoji(player.element)} <b style={{ color:'#a78bfa' }}>{getElementName(player.element)}</b></span>
+                  <span>⚔️ <b style={{ color:'#fca5a5' }}>{atk}</b></span>
+                  <span>🛡️ <b style={{ color:'#93c5fd' }}>{def}</b></span>
+                  <span>🎒 <b style={{ color: player.inventory.length >= capacity ? '#ef4444' : '#fbbf24' }}>{player.inventory.length}/{capacity}</b></span>
+                </div>
+              </div>
+
+              {/* 오른쪽 70%: 컨트롤 영역 */}
+              <div style={{ width:'70%', display:'flex', alignItems:'flex-start', justifyContent:'right', paddingLeft:8, gap:8, boxSizing:'border-box' }}>
+                {/* 왼쪽: 가방/만들기 버튼 */}
+                <div style={{ padding:'0 12px 0 0', display:'flex', flexDirection:'column', gap:15 }}>
+                  <button
+                    onClick={() => {
+                      const panel = document.getElementById('fps-inv-panel');
+                      const overlay = document.getElementById('fps-inv-overlay');
+                      if (panel) {
+                        const next = panel.style.display === 'flex' ? 'none' : 'flex';
+                        panel.style.display = next;
+                        if (overlay) overlay.style.display = next === 'flex' ? 'block' : 'none';
+                      }
+                    }}
+                    style={{ background:'rgba(30,41,59,0.95)', border:'1px solid #4f46e5', color:'#a5b4fc', fontSize:12, borderRadius:6, padding:'10px 14px', cursor:'pointer', userSelect:'none', touchAction:'manipulation' }}>가방(E)</button>
+                  <button
+                    onClick={() => dispatch({ type:'SET_MODAL', modal:'crafting' })}
+                    style={{ background:'rgba(30,41,59,0.95)', border:'1px solid #7c3aed', color:'#c4b5fd', fontSize:12, borderRadius:6, padding:'10px 14px', cursor:'pointer', userSelect:'none', touchAction:'manipulation' }}>만들기(Q)</button>
+                </div>
+
+                {/* 가운데: 방향키 그리드 */}
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(3,45px)', gridTemplateRows:'repeat(2,45px)', gap:3, position:'relative' }}>
+                  {combatState && (
+                    <div style={{
+                      position:'absolute', inset:0, zIndex:2,
+                      background:'rgba(127,29,29,0.35)', border:'1px solid rgba(239,68,68,0.5)',
+                      borderRadius:4, display:'flex', alignItems:'center', justifyContent:'center', pointerEvents:'all',
+                    }}>
+                      <span style={{ fontSize:11, color:'#fca5a5', fontWeight:'bold', textShadow:'0 1px 3px #000' }}>⚔️전투중</span>
+                    </div>
+                  )}
+                  <div />
+                  <button disabled={!!combatState} onPointerDown={() => handleButtonPress('up')} onPointerUp={() => handleButtonRelease('up')} onPointerLeave={() => handleButtonRelease('up')} style={{ ...padBtnStyle, ...(pressedButtons.has('up') ? padBtnActiveStyle : {}), ...(combatState ? padBtnDisabledStyle : {}) }}>↑(W)</button>
+                  <div />
+                  <button disabled={!!combatState} onPointerDown={() => handleButtonPress('left')} onPointerUp={() => handleButtonRelease('left')} onPointerLeave={() => handleButtonRelease('left')} style={{ ...padBtnStyle, ...(pressedButtons.has('left') ? padBtnActiveStyle : {}), ...(combatState ? padBtnDisabledStyle : {}) }}>←(A)</button>
+                  <button disabled={!!combatState} onPointerDown={() => handleButtonPress('down')} onPointerUp={() => handleButtonRelease('down')} onPointerLeave={() => handleButtonRelease('down')} style={{ ...padBtnStyle, ...(pressedButtons.has('down') ? padBtnActiveStyle : {}), ...(combatState ? padBtnDisabledStyle : {}) }}>↓(S)</button>
+                  <button disabled={!!combatState} onPointerDown={() => handleButtonPress('right')} onPointerUp={() => handleButtonRelease('right')} onPointerLeave={() => handleButtonRelease('right')} style={{ ...padBtnStyle, ...(pressedButtons.has('right') ? padBtnActiveStyle : {}), ...(combatState ? padBtnDisabledStyle : {}) }}>→(D)</button>
+                </div>
+
+                {/* 오른쪽: 공격/열기 · 도망/떠나기 버튼 */}
+                <div style={{ padding:'0 0 0 12px', display:'flex', flexDirection:'column', gap:15 }}>
+                  <button
+                    disabled={!combatState && !chestState}
+                    onClick={() => {
+                      if (combatState) dispatch({ type:'COMBAT_ATTACK' });
+                      else if (chestState) {
+                        const sel = selectedChestItemsRef.current;
+                        dispatch({ type:'CHEST_TAKE_SELECTED', itemIndices: sel });
+                        addActionLog('보물상자를 열었다.', 'item');
+                      }
+                    }}
+                    style={{
+                      background: combatState ? 'rgba(127,29,29,0.85)' : chestState ? 'rgba(146,64,14,0.85)' : 'rgba(55,65,81,0.6)',
+                      border: `1px solid ${combatState ? '#ef4444' : chestState ? '#f59e0b' : '#4b5563'}`,
+                      color: combatState ? '#fca5a5' : chestState ? '#fde68a' : '#6b7280',
+                      fontSize:12, borderRadius:6, padding:'10px 10px',
+                      cursor: (combatState || chestState) ? 'pointer' : 'not-allowed',
+                      userSelect:'none', touchAction:'manipulation', fontWeight:'bold',
+                      opacity: (combatState || chestState) ? 1 : 0.5,
+                    }}>{chestState ? `${selectedChestItems.length}개 획득(space)` : '공격(space)'}</button>
+                  <button
+                    disabled={!combatState && !chestState}
+                    onClick={() => {
+                      if (combatState) dispatch({ type:'COMBAT_FLEE' });
+                      else if (chestState) dispatch({ type:'CHEST_CLOSE' });
+                    }}
+                    style={{
+                      background: combatState ? 'rgba(20,83,45,0.85)' : chestState ? 'rgba(30,41,59,0.85)' : 'rgba(55,65,81,0.6)',
+                      border: `1px solid ${combatState ? '#22c55e' : chestState ? '#60a5fa' : '#4b5563'}`,
+                      color: combatState ? '#86efac' : chestState ? '#bfdbfe' : '#6b7280',
+                      fontSize:12, borderRadius:6, padding:'10px 10px',
+                      cursor: (combatState || chestState) ? 'pointer' : 'not-allowed',
+                      userSelect:'none', touchAction:'manipulation', fontWeight:'bold',
+                      opacity: (combatState || chestState) ? 1 : 0.5,
+                    }}>
+                    {chestState ? '떠나기(Z)' : '도망(Z)'}
+                    {combatState && (
+                      <span style={{ fontSize:9, fontWeight:'normal', color:'#f87171', marginLeft:3 }}>
+                        {Math.round(Math.max(0.25, 0.55 - stage * 0.01) * 100)}%
+                      </span>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          )}
         </div>
       </div>
 

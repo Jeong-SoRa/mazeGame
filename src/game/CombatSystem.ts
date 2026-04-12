@@ -16,10 +16,18 @@ export function getPlayerDefense(player: PlayerState): number {
   return player.baseDefense + armorBonus;
 }
 
-// 인벤토리 최대 용량 (기본 10 + 주머니 5씩 추가)
+// 캐릭터별 기본 인벤토리 용량
+const BASE_CAPACITY: Record<string, number> = {
+  cheese_cat: 12,
+  tuxedo_cat: 8,
+  bread_cat: 10,
+};
+
+// 인벤토리 최대 용량 (캐릭터 기본값 + 주머니 5씩 추가)
 export function getInventoryCapacity(player: PlayerState): number {
+  const base = BASE_CAPACITY[player.characterId ?? ''] ?? 10;
   const pouches = player.inventory.filter(item => item.item.id === 'pouch').length;
-  return 10 + pouches * 5;
+  return base + pouches * 5;
 }
 
 // 플레이어의 실제 공격 속성 (인벤토리 첫 번째 무기 속성 우선, 없으면 캐릭터 속성)

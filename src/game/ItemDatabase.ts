@@ -31,7 +31,7 @@ export const ITEMS: Record<string, Item> = {
     attack: 22, description: '번개의 힘이 담긴 검', rarity: 'legendary',
   },
   dragon_slayer: {
-    id: 'dragon_slayer', name: '용살검', emoji: '🐉', type: 'weapon', element: 'fire',
+    id: 'dragon_slayer_sword', name: '용살검', emoji: '🐉', type: 'weapon', element: 'fire',
     attack: 30, description: '용을 처치하기 위해 만들어진 궁극의 검', rarity: 'legendary',
   },
 
